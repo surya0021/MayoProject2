@@ -1,7 +1,12 @@
 % This program gets the LFP power and firing rate and ROC analysis data of LFP power and firing rate for single electrode.
 % This program is called in plotAucAnalysisPower.m
 
-%parameters to set : 
+% Prerequisite : run getDataForAnalysis.m to obtain the data required for this code
+
+% Parameters to set:
+% OriType = "All" or "Selected" to choose one orientaion among all the orientation changes or selected (chosen for decoding project) orientations.
+% targetOnTimeCriteria = 0 or 1 : whether to consider trials having a minimum cutoff to avoid transients.
+% targetOnTimeCutOff : cutoff in MS chosen for target onset time. Set this to 0 if targetOnTimeCriteria is set to 0
 function [freqVals,psdData,firingRate,dPrimePSD,dPrimeFiringRate,matPSDData,matFiringRate,delPSDData,aucSEPower,aucSEFiringRate] = aucAnalysisPower
 folderSourceString = 'G:';
 oriType = 'Selected'; % Selected or All

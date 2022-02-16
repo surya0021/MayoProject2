@@ -1,20 +1,21 @@
-%This program saves LFP and spike data either before 500 ms or 1000 ms before target onset of single orientation change chosen either among selected (the ones used in decoding project)
+%This program saves LFP and spike data of a single orientation change chosen either among selected (the ones used in decoding project)
 %or all orientation change by setting the "oriFlag" of all session and 12 attention condition in a single
 %file which is used in all further analysis
 
-%Segmented data has for [-0.5 0.1] period is already saved for decoding project.
-%But for [-1 0.1] time period, data has to be saved using saveSegmentedDataMayoVer2.m and
-%saveSegmentedNeutralDataMayoVer2.m programs.
+%Prerequisite data : 
+% 1)extractedData  2)segmentedData  3)electrodeArrayList
 
+%Parameters to set 
+% 1)OriFlag     2)targetOnTimeCriteria     3)targetOnTImeCutoff
 folderSourceString = 'G:';
 folderNameExtractedData = fullfile(folderSourceString,'Mayo','Data','extractedData');
 
-oriFlag = 1; % 0: all orientation change are considered    1: selected orientation change are considered.
+oriFlag = 1; % 0: all orientation change are considered    1: only selected orientation change (which were used in decoding project) are considered.
 
 targetOnTimeCriteria = 0; % 0 = No cutoff on target onset time  1: Cutoff on target onset time
+targetOnTimeCutoff = 0; % cutoff in MS chosen for target onset time. Set this to 0 if targetOnTimeCriteria is set to 0
 
-
-signalDuration = [-0.5 0.1]; %[-1 0.1] % the time points between which the data is segmented.
+signalDuration = [-0.5 0.1]; % the time points between which the data is segmented.
 
 fileNameStringList = getAttentionExperimentDetails;
 fileNameStringListAll = cat(2,fileNameStringList{1},fileNameStringList{2});
@@ -28,13 +29,6 @@ electrodeFolderString = fullfile(folderSourceString,'Mayo','Data','savedDataSumm
 electrodeFileString = fullfile(electrodeFolderString,'electrodeArrayListStimulated.mat');
 eListAll = load(electrodeFileString);
 
-if diff(signalDuration)==0.6
-    dataFolder = 'segmentedData';
-    targetOnTimeCutoff = 0; % trials having target onset time more than the cutoff are chosen for further analysis
-elseif diff(signalDuration)==1.1
-    dataFolder = 'segmentedData2';
-    targetOnTimeCutoff = 1250; % trials having target onset time more than the cutoff are chosen for further analysis
-end
 saveDataFolder = fullfile(folderSourceString,'Projects','MayoProject2','Data','savedDataForAnalysis');
 makeDirectory(saveDataFolder)
 if oriFlag==0
@@ -57,20 +51,10 @@ for i=1:length(fileNameStringListAll)
     DAT = DAT.(fileNameDAT);
     [~,~,targetOnTimeMS,~,~] = getInfoDATFile(DAT);
     
-    dataFolderString = fullfile(folderSourceString,'Mayo','Data',dataFolder,fileNameStringListAll{i});
+    dataFolderString = fullfile(folderSourceString,'Mayo','Data','segmentedData',fileNameStringListAll{i});
     
-    if diff(signalDuration)==0.6
-        [perCorrect,uniqueOrientationChangeDeg,goodIndexList,orientationChangeDeg] = getBehavior(fileNameStringListAll{i});
-    
-    elseif diff(signalDuration)==1.1 
-        goodIndexList = cell(1,12);
-        indexList1 = load(fullfile(dataFolderString,'goodIndexList_TargetOnset-1_0.1.mat'));
-        indexList2 = load(fullfile(dataFolderString,'goodIndexList_SplitNeutral_TargetOnset-1_0.1.mat'));
-        goodIndexList(1:8) = indexList1.goodIndexListNew(1:8);
-        goodIndexList(9:12) = indexList2.goodIndexListNew;
-        [perCorrect,uniqueOrientationChangeDeg,~,orientationChangeDeg] = getBehavior(fileNameStringListAll{i});
-    end
-    
+    [perCorrect,uniqueOrientationChangeDeg,goodIndexList,orientationChangeDeg] = getBehavior(fileNameStringListAll{i});
+     
     if oriFlag == 0
         [~,oriChangeIndex] = min(abs(perCorrect-0.5),[],2);     % choosing orientation change near 50% performance
     elseif oriFlag == 1
