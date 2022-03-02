@@ -6,15 +6,11 @@
 % 1)extractedData  2)segmentedData  3)electrodeArrayList
 
 %Parameters to set 
-% 1)OriFlag     2)targetOnTimeCriteria     3)targetOnTImeCutoff
+% 1)OriFlag    
 folderSourceString = 'G:';
 folderNameExtractedData = fullfile(folderSourceString,'Mayo','Data','extractedData');
 
 oriFlag = 1; % 0: all orientation change are considered    1: only selected orientation change (which were used in decoding project) are considered.
-
-targetOnTimeCriteria = 0; % 0 = No cutoff on target onset time  1: Cutoff on target onset time
-targetOnTimeCutoff = 0; % cutoff in MS chosen for target onset time. Set this to 0 if targetOnTimeCriteria is set to 0
-
 signalDuration = [-0.5 0.1]; % the time points between which the data is segmented.
 
 fileNameStringList = getAttentionExperimentDetails;
@@ -36,12 +32,17 @@ if oriFlag==0
 elseif oriFlag==1
     oriType = 'Selected';
 end
-fileNameSaveString = ['data_' oriType 'Ori' '_Perform50' '_targetOnTimeCriterion' num2str(targetOnTimeCriteria) '_targetOnTimeCutoff' num2str(targetOnTimeCutoff) '_targetOnset' num2str(signalDuration(1)) '_' num2str(signalDuration(2)) '.mat']; 
+fileNameSaveString = ['data_' oriType 'Ori' '_Perform50' '_targetOnset' num2str(signalDuration(1)) '_' num2str(signalDuration(2)) '.mat']; 
 fileNameSave = fullfile(saveDataFolder,fileNameSaveString);
+
+nSessions = length(fileNameStringListAll);
+nConditions = length(attCueList);
 
 goodLFPData = cell(1,2);
 goodSpikeData = cell(1,2);
-nTrials = zeros(length(fileNameStringListAll),length(attCueList));
+targetOnsetTimes = cell(nSessions,nConditions);
+nTrials = zeros(nSessions,nConditions);
+
 for i=1:length(fileNameStringListAll)
     
     disp(['Session ' num2str(i) ' of ' num2str(length(fileNameStringListAll))])
@@ -68,6 +69,7 @@ for i=1:length(fileNameStringListAll)
     clear goodLFPDataTMP goodSpikeDataTMP
     goodLFPDataTMP = cell(1,2);
     goodSpikeDataTMP = cell(1,2);
+    targetOnsetTimesTMP = cell(1,length(attCueList));
     for j=1:length(attCueList)
         fileNameStringLFP = fullfile(dataFolderString,[fileNameStringListAll{i} attCueList{j} '_TargetOnset_' 'LFP.mat']);
         fileNameStringSpikes = fullfile(dataFolderString,[fileNameStringListAll{i} attCueList{j} '_TargetOnset_' 'Spikes.mat']);
@@ -77,28 +79,22 @@ for i=1:length(fileNameStringListAll)
         
         oriChangeThisCondition = orientationChangeDeg(goodIndexList{j});
         targetOnTimeThisCondition = targetOnTimeMS(goodIndexList{j}); 
-        goodPosTMP = find(oriChangeThisCondition==uniqueOrientationChangeDeg(allConditionOriChangeIndex(j)));
-        
-        if targetOnTimeCriteria == 1
-            goodTargetPos = find(targetOnTimeThisCondition>=targetOnTimeCutoff);
-            goodPos = intersect(goodPosTMP,goodTargetPos);
-        elseif targetOnTimeCriteria == 0
-            goodPos = goodPosTMP;
-        end
+        goodPos = find(oriChangeThisCondition==uniqueOrientationChangeDeg(allConditionOriChangeIndex(j)));
         
         for array=1:2   % 1: Right Array    2: Left Array
             goodLFPDataTMP{array}{j} = lfpData.segmentedLFPData(eList{array},goodPos,:);
             goodSpikeDataTMP{array}{j} = spikeData.segmentedSpikeData(eList{array},goodPos);
         end
+        targetOnsetTimesTMP{j} = targetOnTimeThisCondition(goodPos);
     end  
     %Rearranging the data array 
     for array=1:2
         goodLFPData{array}(i,:) = goodLFPDataTMP{array}(newIndex);
         goodSpikeData{array}(i,:) = goodSpikeDataTMP{array}(newIndex);
     end
-    
+    targetOnsetTimes(i,:) = targetOnsetTimesTMP(newIndex);
     nTrials(i,:) = cellfun(@(x) size(x,2),goodLFPData{1}(i,:),'un',1);
     timeVals = lfpData.timeVals;
 end
 
-save(fileNameSave,'goodLFPData','goodSpikeData','timeVals','nTrials','-v7.3')
+save(fileNameSave,'goodLFPData','goodSpikeData','timeVals','targetOnsetTimes','nTrials','-v7.3')
