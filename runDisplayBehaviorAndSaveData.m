@@ -3,7 +3,7 @@
 % also saves the intermediate data
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Set variables %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-saveDataFlag=1; % Set to 1 if you also want to save data. Otherwise this program just displays behavioral data
+saveDataFlag=0; % Set to 1 if you also want to save data. Otherwise this program just displays behavioral data
 
 selectedOrientations = [2 3]; % Choose only between these two, since we have invalid conditions for only these condition, and since these were overrepresented in the dataset. Previous papers have done the same
 colorList = 'rmgkbc';
@@ -59,7 +59,7 @@ for i=1:numSessions
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%  Display Summary %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-legend('0V','1V','0I','1I','0N','1N','Location','SouthEast');
+legend(legendList,'Location','SouthEast');
 
 cueTypeList = [{'Valid'} {'InValid'} {'Neutral'}];
 badPosAll=[];

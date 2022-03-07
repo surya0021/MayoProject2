@@ -41,8 +41,8 @@ for i=1:numConditions
     targetOnsetTimes{i} = targetOnTimeThisCondition(goodOriPos);
     
     for array=1:2   % 1: Right Array    2: Left Array
-        goodLFPData{array}{i} = lfpData.segmentedLFPData(electrodeList{array},goodOriPos,:);
-        goodSpikeData{array}{i} = spikeData.segmentedSpikeData(electrodeList{array},goodOriPos);
+        goodLFPData{array,i} = lfpData.segmentedLFPData(electrodeList{array},goodOriPos,:);
+        goodSpikeData{array,i} = spikeData.segmentedSpikeData(electrodeList{array},goodOriPos);
     end
 end
 
