@@ -4,10 +4,14 @@
 % 2. LFP Power using MT
 % 3. LFP amplitude and phase using FFT
 
-function [allFiringRates,allMTPower,allFFTVals,allNumTrials,allTargetOnsetTimes,freqValsMT,freqValsFFT] = getAnalysisMeasuresSingleElectrode
+function [allFiringRates,allMTPower,allFFTVals,allNumTrials,allTargetOnsetTimes,freqValsMT,freqValsFFT] = getAnalysisMeasuresSingleElectrode(TWNum)
+
+if ~exist('TWNum','var');                   TWNum=3;                    end
+
+tapers = [TWNum 2*TWNum-1];
 
 folderSavedData = fullfile(pwd,'savedData');
-fileNameSave = fullfile(folderSavedData,'singleElectrodeMeasures.mat');
+fileNameSave = fullfile(folderSavedData,['singleElectrodeMeasures' num2str(TWNum) '.mat']);
 
 if exist(fileNameSave,'file')
     disp(['Loading saved data in ' fileNameSave]);
@@ -29,7 +33,7 @@ else
     
     %%%%%%%%%%%%%%%%%%%%%% Set up MT and FFT parameters %%%%%%%%%%%%%%%%%%%%%%%
     fMax = 200;
-    params.tapers = [2 3];
+    params.tapers = tapers;
     params.pad = -1;
     params.Fs = Fs;
     params.fpass = [0 fMax];

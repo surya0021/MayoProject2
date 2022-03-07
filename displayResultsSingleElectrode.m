@@ -1,12 +1,12 @@
 % conditionType: 'V', 'N' or 'I' (valid, neutral or invalid)
 % targetOnsetMatchingChoice: 1 - nothing, 2 - numtrials, 3 - mean matching (default)
 
-function displayResultsSingleElectrode(conditionType,targetOnsetMatchingChoice)
+function displayResultsSingleElectrode(conditionType,targetOnsetMatchingChoice,numTrialCutoff)
 
 if ~exist('targetOnsetMatchingChoice','var'); targetOnsetMatchingChoice=3; end
+if ~exist('numTrialCutoff','var');            numTrialCutoff=10;        end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Options %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-numTrialCutoff = 10;
 colorNames = 'brcm'; % Attend-In Hit, Attend-Out Hit, Attend-In Miss, Attend-Out Miss: This is the order in which data is plotted
 legendStrList = [{'AIH'} {'AOH'} {'AIM'} {'AOM'}];
 
@@ -97,7 +97,10 @@ end
 legend(hPlots(1,1),legendStr);
 xlabel(hPlots(1,1),'TargetOnset (ms)'); ylabel(hPlots(1,1),'Num Stim');
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%% Plot Mean Data %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 goodFiringRates = allFiringRates(goodSessionList);
 goodMTPower = allMTPower(goodSessionList);
 goodFFTVals = allFFTVals(goodSessionList);
@@ -145,6 +148,39 @@ for pos=1:3
     plot(hPlots(4,pos),tmpFreq,zeros(1,length(tmpFreq)),'k');
     title(hPlots(4,pos),'H vs M: AI(b) & AO(r)');
 end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%% Plot AUC %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+allAUCFiringRates = [];
+allAUCMTPower = [];
+allAUCFFTAmplitude = [];
+allAUCFFTPhase = [];
+
+for i=1:numGoodSessions
+    disp(['Getting AUC/dPrime for session: ' num2str(i)]); 
+    allAUCFiringRates = cat(1,allAUCFiringRates,combineDataAcrossBothArrays(getAUC(goodFiringRates{i}(:,conditionsToUse))));
+    allAUCMTPower = cat(1,allAUCMTPower,combineDataAcrossBothArrays(getAUC(goodMTPower{i}(:,conditionsToUse))));
+    allAUCFFTAmplitude = cat(1,allAUCFFTAmplitude,combineDataAcrossBothArrays(getAUC(goodFFTVals{i}(:,conditionsToUse),'A')));
+    allAUCFFTPhase = cat(1,allAUCFFTPhase,combineDataAcrossBothArrays(getAUC(goodFFTVals{i}(:,conditionsToUse),'P')));
+end
+
+for pos=1:3
+    if pos==1 % MTPower
+        tmpData = allAUCMTPower; tmpFreq = freqValsMT;
+    elseif pos==2 % FFT Amplitude
+        tmpData = allAUCFFTAmplitude; tmpFreq = freqValsFFT(1:size(tmpData,2));
+    elseif pos==3 % FFt Phase
+        tmpData = allAUCFFTPhase; tmpFreq = freqValsFFT(1:size(tmpData,2));
+    end
+    
+    % Behavioral Difference
+    plotData(hPlots(5,pos),tmpFreq,squeeze(tmpData(:,:,1)),colorNames(1));
+    plotData(hPlots(5,pos),tmpFreq,squeeze(tmpData(:,:,2)),colorNames(2));
+    
+    % Compare with AUC of firing rate
+    plotData(hPlots(5,pos),tmpFreq,repmat(squeeze(allAUCFiringRates(:,:,1)),1,length(tmpFreq)),colorNames(1));
+    plotData(hPlots(5,pos),tmpFreq,repmat(squeeze(allAUCFiringRates(:,:,2)),1,length(tmpFreq)),colorNames(2));
+    title(hPlots(5,pos),'H vs M: AI(b) & AO(r)');
+end
 end
 
 function y=getMean(x,condition)
@@ -167,13 +203,64 @@ for i=1:num1
     end
 end
 end
-function combinedData = combineDataAcrossBothArrays(data)
-tmpCombinedData{1} = cat(1,data{1,1},data{2,2}); % Attend In Hit [(R)H0 & (L)H1]
-tmpCombinedData{2} = cat(1,data{1,2},data{2,1}); % Attend Out Hit [(R)H1 & (L)H0)]
-tmpCombinedData{3} = cat(1,data{1,3},data{2,4}); % Attend In Miss [(R)M0 & (L)M1]
-tmpCombinedData{4} = cat(1,data{1,4},data{2,3}); % Attend Out Miss [(R)M1 & (L)M0)
+function y=getAUC(x,condition)
 
-combinedData = cat(3,tmpCombinedData{1},tmpCombinedData{2},tmpCombinedData{3},tmpCombinedData{4});
+if ~exist('condition','var');       condition = 'A';                    end
+
+if (size(x,1)~=2) || (size(x,2)~=4)
+    error('Data matrix has inconsistent size');
+end
+xSize = numel(size(x{1,1})); % 2 for FR, 3 for LFP
+y = cell(2,2);
+
+for i=1:2
+    for j=1:2
+        if strcmp(condition,'A')
+            d1 = abs(x{i,j}); d2 = abs(x{i,j+2});
+        elseif strcmp(condition,'P')
+            d1 = angle(x{i,j}); d2 = angle(x{i,j+2});
+        end
+        numElecs = size(d1,1);
+        if size(d2,1)~=numElecs
+            error('Number of electrodes are different');
+        end
+        
+        if xSize==2 % Firing Rate
+            tmpData = zeros(numElecs,1);
+            for k=1:numElecs
+                tmpData(k) = getDPrime(d1(k,:),d2(k,:));
+                %tmpData(k) = ROCAnalysis(d1(k,:),d2(k,:));
+            end
+        else % LFP power or phase
+            numFreqs = size(d1,2);
+            tmpData = zeros(numElecs,numFreqs);
+            for k=1:numElecs
+                for f=1:numFreqs
+                    tmpData(k,f) = getDPrime(squeeze(d1(k,f,:)),squeeze(d2(k,f,:)));
+                    %tmpData(k,f) = ROCAnalysis(squeeze(d1(k,f,:)),squeeze(d2(k,f,:)));
+                end
+            end
+        end
+        y{i,j} = tmpData;
+    end
+end
+end
+function combinedData = combineDataAcrossBothArrays(data)
+
+if (size(data,1)==2) && (size(data,2)==4)
+    tmpCombinedData{1} = cat(1,data{1,1},data{2,2}); % Attend In Hit [(R)H0 & (L)H1]
+    tmpCombinedData{2} = cat(1,data{1,2},data{2,1}); % Attend Out Hit [(R)H1 & (L)H0)]
+    tmpCombinedData{3} = cat(1,data{1,3},data{2,4}); % Attend In Miss [(R)M0 & (L)M1]
+    tmpCombinedData{4} = cat(1,data{1,4},data{2,3}); % Attend Out Miss [(R)M1 & (L)M0)
+    
+    combinedData = cat(3,tmpCombinedData{1},tmpCombinedData{2},tmpCombinedData{3},tmpCombinedData{4});
+    
+elseif (size(data,1)==2) && (size(data,2)==2) % For combining AUC results
+    tmpCombinedData{1} = cat(1,data{1,1},data{2,2}); % Attend In AUC [(R)H0 & (L)H1]
+    tmpCombinedData{2} = cat(1,data{1,2},data{2,1}); % Attend Out AUC [(R)H1 & (L)H0)]
+    
+    combinedData = cat(3,tmpCombinedData{1},tmpCombinedData{2});
+end
 end
 function makeBarPlot(h,data,colorNames,legendStr)
 
@@ -209,4 +296,8 @@ end
     
 hold(hPlot,'on');
 plot(hPlot,xs,mData,'color',colorName,'linewidth',1); 
+end
+function d = getDPrime(x1,x2)
+stdVal = sqrt((var(x1)+var(x2))/2);
+d = (mean(x1)- mean(x2))/stdVal;
 end
