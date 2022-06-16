@@ -4,12 +4,16 @@
 % TWNum - TW product for Multi-taper analysis
 % displayAUCFlag - set to 1 to get AUC, 0 to get dPrime
 
-function displayResultsSingleElectrode(conditionType,targetOnsetMatchingChoice,numTrialCutoff,TWNum,displayAUCFlag)
+% This old version show results for MT, FFT amplitude and FFT phase. Also
+% shows targetOnsetMatchingChoice of 1 and 3 at separate locations for
+% easier comparison.
+
+function displayResultsSingleElectrodeOld(conditionType,targetOnsetMatchingChoice,numTrialCutoff,TWNum,displayAUCFlag)
 
 if ~exist('targetOnsetMatchingChoice','var'); targetOnsetMatchingChoice=3; end
 if ~exist('numTrialCutoff','var');            numTrialCutoff=10;        end
 if ~exist('TWNum','var');                   TWNum=3;                    end
-if ~exist('displayAUCFlag','var');          displayAUCFlag=1;           end
+if ~exist('displayAUCFlag','var');          displayAUCFlag=0;           end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Options %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 colorNames = 'brcm'; % Attend-In Hit, Attend-Out Hit, Attend-In Miss, Attend-Out Miss: This is the order in which data is plotted
@@ -20,7 +24,7 @@ legendForComparison{1} = 'AI vs AO: H(black) & M(gray)';
 legendForComparison{2} = 'H vs M: AI(b) & AO(r)';
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Get Data %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-[allFiringRates0,allMTPower0,allFFTVals0,~,allTargetOnsetTimes0,freqValsMT,freqValsFFT] = getAnalysisMeasuresSingleElectrode(TWNum);
+[allFiringRates0,allMTPower0,~,allTargetOnsetTimes0,freqValsMT,allFFTVals0,freqValsFFT] = getAnalysisMeasuresSingleElectrode(TWNum,1);
 numSessions = length(allTargetOnsetTimes0);
 numConditions = length(allTargetOnsetTimes0{1});
 

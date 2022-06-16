@@ -2,21 +2,32 @@
 % following measures are used:
 % 1. Spike Counts
 % 2. LFP Power using MT
-% 3. LFP amplitude and phase using FFT
+% 3. LFP amplitude and phase using FFT - now save separately to avoid duplication of saved data
 
-function [allFiringRates,allMTPower,allFFTVals,allNumTrials,allTargetOnsetTimes,freqValsMT,freqValsFFT] = getAnalysisMeasuresSingleElectrode(TWNum)
+function [allFiringRates,allMTPower,allNumTrials,allTargetOnsetTimes,freqValsMT,allFFTVals,freqValsFFT] = getAnalysisMeasuresSingleElectrode(TWNum,getFFTFlag)
 
 if ~exist('TWNum','var');                   TWNum=3;                    end
+if ~exist('getFFTFlag','var');              getFFTFlag=0;               end
 
 tapers = [TWNum 2*TWNum-1];
 
 folderSavedData = fullfile(pwd,'savedData');
-fileNameSave = fullfile(folderSavedData,['singleElectrodeMeasures' num2str(TWNum) '.mat']);
+fileNameSaveMT = fullfile(folderSavedData,['singleElectrodeMeasures' num2str(TWNum) '.mat']);
+fileNameSaveFFT = fullfile(folderSavedData,'singleElectrodeMeasuresFFT.mat');
 
-if exist(fileNameSave,'file')
-    disp(['Loading saved data in ' fileNameSave]);
-    load(fileNameSave,'allFiringRates','allMTPower','allFFTVals','allNumTrials','allTargetOnsetTimes','freqValsMT','freqValsFFT');
+if exist(fileNameSaveMT,'file')
+
+    disp(['Loading saved data in ' fileNameSaveMT]);
+    load(fileNameSaveMT,'allFiringRates','allMTPower','allNumTrials','allTargetOnsetTimes','freqValsMT');
+    
+    if getFFTFlag
+        load(fileNameSaveFFT,'allFFTVals','freqValsFFT'); % We assume that this file exists. It should get generated the first time this program is called with getFFTFlag set to 1.
+    else
+        allFFTVals=[]; freqValsFFT=[];
+    end
 else
+    
+    doFFTAnalysisFlag = ~exist(fileNameSaveFFT,'file') && getFFTFlag; % Do FFT Analysis only if we need it and the file does not exist
     
     %%%%%%%%%%%%%%%%%%%%%%%%%% Get Experimental Details %%%%%%%%%%%%%%%%%%%%%%%
     fileNameStringList = getAttentionExperimentDetails;
@@ -39,9 +50,13 @@ else
     params.fpass = [0 fMax];
     params.trialave = 0;
     
-    freqValsFFTall = 0:1/diff(timeRange):Fs-1/diff(timeRange);
-    fPosFFT = (freqValsFFTall<=fMax);
-    freqValsFFT = freqValsFFTall(fPosFFT);
+    if doFFTAnalysisFlag
+        freqValsFFTall = 0:1/diff(timeRange):Fs-1/diff(timeRange);
+        fPosFFT = (freqValsFFTall<=fMax);
+        freqValsFFT = freqValsFFTall(fPosFFT);
+    else
+        freqValsFFT=[];
+    end
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     allFiringRates = cell(1,numSessions);
@@ -69,8 +84,11 @@ else
                     
                     tmpLFP = squeeze(data.goodLFPData{array,c}(e,:,timePos))';
                     [mtPower{array,c}(e,:,:),freqValsMT] = mtspectrumc(tmpLFP,params);
-                    fftx = fft(tmpLFP);
-                    fftVals{array,c}(e,:,:) = fftx(fPosFFT,:);
+                    
+                    if doFFTAnalysisFlag
+                        fftx = fft(tmpLFP);
+                        fftVals{array,c}(e,:,:) = fftx(fPosFFT,:);
+                    end
                 end
             end
         end
@@ -81,6 +99,9 @@ else
         allTargetOnsetTimes{s} = data.targetOnsetTimes;
     end
     
-    save(fileNameSave,'allFiringRates','allMTPower','allFFTVals','allNumTrials','allTargetOnsetTimes','freqValsMT','freqValsFFT');
+    save(fileNameSaveMT,'allFiringRates','allMTPower','allNumTrials','allTargetOnsetTimes','freqValsMT');
+    if doFFTAnalysisFlag
+        save(fileNameSaveFFT,'allFFTVals','freqValsFFT');
+    end
 end
 end
