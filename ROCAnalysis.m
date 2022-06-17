@@ -10,13 +10,10 @@
 function auc = ROCAnalysis(data1,data2)
 
 criterion = linspace(min(min(data1),min(data2)),max(max(data1),max(data2)),100);
-if mean(data1)>mean(data2)
-    class1 = data1;
-    class2 = data2;
-else
-    class1 = data2;
-    class2 = data1;
-end
+
+class1 = data1;
+class2 = data2;
+
 for i=1:length(criterion)
     TP(i) = sum(class1>=criterion(i)); %#ok<*AGROW>
     FN(i) = sum(class1<criterion(i));

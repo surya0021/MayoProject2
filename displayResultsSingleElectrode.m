@@ -2,14 +2,12 @@
 % targetOnsetMatchingChoice: 1 - nothing, 2 - numtrials, 3 - mean matching (default)
 % numTrialCutoff - only select sessions which have more than these number of trials
 % TWNum - TW product for Multi-taper analysis
-% displayAUCFlag - set to 1 to get AUC, 0 to get dPrime
 
-function displayResultsSingleElectrode(conditionType,targetOnsetMatchingChoice,numTrialCutoff,TWNum,displayAUCFlag)
+function displayResultsSingleElectrode(conditionType,targetOnsetMatchingChoice,numTrialCutoff,TWNum)
 
 if ~exist('targetOnsetMatchingChoice','var'); targetOnsetMatchingChoice=3; end
 if ~exist('numTrialCutoff','var');            numTrialCutoff=10;        end
 if ~exist('TWNum','var');                   TWNum=3;                    end
-if ~exist('displayAUCFlag','var');          displayAUCFlag=1;           end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Options %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 colorNames = 'brcm'; % Attend-In Hit, Attend-Out Hit, Attend-In Miss, Attend-Out Miss: This is the order in which data is plotted
@@ -20,7 +18,7 @@ legendForComparison{1} = 'AI vs AO: H(black) & M(gray)';
 legendForComparison{2} = 'H vs M: AI(b) & AO(r)';
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Get Data %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-[allFiringRates0,allMTPower0,allFFTVals0,~,allTargetOnsetTimes0,freqValsMT,freqValsFFT] = getAnalysisMeasuresSingleElectrode(TWNum);
+[allFiringRates0,allMTPower0,~,allTargetOnsetTimes0,freqValsMT] = getAnalysisMeasuresSingleElectrode(TWNum);
 numSessions = length(allTargetOnsetTimes0);
 numConditions = length(allTargetOnsetTimes0{1});
 
@@ -31,14 +29,12 @@ goodStimNums = getGoodStimNums(allTargetOnsetTimes0,targetOnsetMatchingChoice,ta
 %%%%%%%%%%%%%%%%%%%% Select only good stimIndices %%%%%%%%%%%%%%%%%%%%%%%%%
 allFiringRates = cell(1,numSessions);
 allMTPower = cell(1,numSessions);
-allFFTVals = cell(1,numSessions);
 allNumTrials = cell(1,numSessions);
 allTargetOnsetTimes = cell(1,numSessions);
 
 for i=1:numSessions
     tmpFiringRates = cell(2,numConditions);
     tmpMTPower = cell(2,numConditions);
-    tmpFFTVals = cell(2,numConditions);
     tmpAllNumTrials = zeros(1,numConditions);
     tmpTargetOnsetTimes = cell(1,numConditions);
     
@@ -46,14 +42,12 @@ for i=1:numSessions
         for j=1:2
             tmpFiringRates{j,k} = allFiringRates0{i}{j,k}(:,goodStimNums{i}{k});
             tmpMTPower{j,k} = allMTPower0{i}{j,k}(:,:,goodStimNums{i}{k});
-            tmpFFTVals{j,k} = allFFTVals0{i}{j,k}(:,:,goodStimNums{i}{k});
         end
         tmpAllNumTrials(k) = length(goodStimNums{i}{k});
         tmpTargetOnsetTimes{k} = allTargetOnsetTimes0{i}{k}(goodStimNums{i}{k});
     end
     allFiringRates{i} = tmpFiringRates;
     allMTPower{i} = tmpMTPower;
-    allFFTVals{i} = tmpFFTVals;
     allNumTrials{i} = tmpAllNumTrials;
     allTargetOnsetTimes{i} = tmpTargetOnsetTimes;
 end
@@ -80,11 +74,7 @@ disp(['Discarded sessions: ' num2str(badSessionList')]);
 
 %%%%%%%%%%%%%%%%%%%%%%%%% Display Mean Responses %%%%%%%%%%%%%%%%%%%%%%%%%%
 
-if targetOnsetMatchingChoice==1
-    hPlots = getPlotHandles(6,3,[0.05 0.05 0.4 0.9],0.05,0.05,0);
-else
-    hPlots = getPlotHandles(6,3,[0.55 0.05 0.4 0.9],0.05,0.05,0);
-end
+hPlots = getPlotHandles(2,5,[0.05 0.05 0.9 0.9],0.05,0.1,0);
 
 %%%%%%%%%%%%%%%%%%%%%%% Display TargetOnset Histogram %%%%%%%%%%%%%%%%%%%%%
 
@@ -112,85 +102,67 @@ xlabel(hPlots(1,1),'TargetOnset (ms)'); ylabel(hPlots(1,1),'Num Stim');
 
 goodFiringRates = allFiringRates(goodSessionList);
 goodMTPower = allMTPower(goodSessionList);
-goodFFTVals = allFFTVals(goodSessionList);
 
 allMeanFiringRates = [];
 allMeanMTPower = [];
-allMeanFFTAmplitude = [];
-allMeanFFTPhase = [];
 
 for i=1:numGoodSessions
     allMeanFiringRates = cat(1,allMeanFiringRates,combineDataAcrossBothArrays(getMean(goodFiringRates{i}(:,conditionsToUse))));
     allMeanMTPower = cat(1,allMeanMTPower,combineDataAcrossBothArrays(getMean(goodMTPower{i}(:,conditionsToUse))));
-    allMeanFFTAmplitude = cat(1,allMeanFFTAmplitude,combineDataAcrossBothArrays(getMean(goodFFTVals{i}(:,conditionsToUse),'A')));
-    allMeanFFTPhase = cat(1,allMeanFFTPhase,combineDataAcrossBothArrays(getMean(goodFFTVals{i}(:,conditionsToUse),'P')));
 end
 
 % Firing Rates
-makeBarPlot(hPlots(1,2),squeeze(allMeanFiringRates),colorNames,legendStrList);
-title(hPlots(1,2),'Firing Rates'); ylabel(hPlots(1,2),'Spikes/s');
+makeBarPlot(hPlots(2,1),squeeze(allMeanFiringRates),colorNames,legendStrList);
+title(hPlots(2,1),'Firing Rates'); ylabel(hPlots(2,1),'Spikes/s');
 
-% FFT/MT Power and phase
-for pos=1:3
-    if pos==1 % MTPower
-        tmpData = 10*log10(allMeanMTPower); tmpFreq = freqValsMT; conditionStr='A';
-    elseif pos==2 % FFT Amplitude
-        tmpData = 20*log10(allMeanFFTAmplitude); tmpFreq = freqValsFFT(1:size(tmpData,2)); conditionStr='A';
-    elseif pos==3 % FFt Phase
-        tmpData = allMeanFFTPhase; tmpFreq = freqValsFFT(1:size(tmpData,2)); conditionStr='P';
-    end
-    
-    % Change from AOV condition
-    for i=1:4
-        plotData(hPlots(2,pos),tmpFreq,squeeze(tmpData(:,:,i) - tmpData(:,:,2)),colorNames(i),conditionStr);
-    end
-    
-    % Attention Difference
-    plotData(hPlots(3,pos),tmpFreq,squeeze(tmpData(:,:,1) - tmpData(:,:,2)),colorsForComparison{1}{1},conditionStr);
-    plotData(hPlots(3,pos),tmpFreq,squeeze(tmpData(:,:,3) - tmpData(:,:,4)),colorsForComparison{1}{2},conditionStr);
-    plot(hPlots(3,pos),tmpFreq,zeros(1,length(tmpFreq)),'r');
-    title(hPlots(3,pos),legendForComparison{1});
-    
-    % Behavioral Difference
-    plotData(hPlots(4,pos),tmpFreq,squeeze(tmpData(:,:,1) - tmpData(:,:,3)),colorsForComparison{2}{1},conditionStr);
-    plotData(hPlots(4,pos),tmpFreq,squeeze(tmpData(:,:,2) - tmpData(:,:,4)),colorsForComparison{2}{2},conditionStr);
-    plot(hPlots(4,pos),tmpFreq,zeros(1,length(tmpFreq)),'k');
-    title(hPlots(4,pos),legendForComparison{2});
+% MT Power
+tmpData = 10*log10(allMeanMTPower); tmpFreq = freqValsMT; conditionStr='A';
+
+for i=1:4
+    plotData(hPlots(1,2),tmpFreq,squeeze(tmpData(:,:,i)),colorNames(i),conditionStr); % Change from AOV condition
+    plotData(hPlots(2,2),tmpFreq,squeeze(tmpData(:,:,i) - tmpData(:,:,2)),colorNames(i),conditionStr); % Change from AOV condition
 end
+
+% Attention Difference
+plotData(hPlots(1,3),tmpFreq,squeeze(tmpData(:,:,1) - tmpData(:,:,2)),colorsForComparison{1}{1},conditionStr);
+plotData(hPlots(1,3),tmpFreq,squeeze(tmpData(:,:,3) - tmpData(:,:,4)),colorsForComparison{1}{2},conditionStr);
+plot(hPlots(1,3),tmpFreq,zeros(1,length(tmpFreq)),'r');
+title(hPlots(1,3),legendForComparison{1});
+
+% Behavioral Difference
+plotData(hPlots(2,3),tmpFreq,squeeze(tmpData(:,:,1) - tmpData(:,:,3)),colorsForComparison{2}{1},conditionStr);
+plotData(hPlots(2,3),tmpFreq,squeeze(tmpData(:,:,2) - tmpData(:,:,4)),colorsForComparison{2}{2},conditionStr);
+plot(hPlots(2,3),tmpFreq,zeros(1,length(tmpFreq)),'k');
+title(hPlots(2,3),legendForComparison{2});
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%% Plot AUC %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-for comparisonType =  1:2    % 1 - Att In-out, 2 - H vs M
-    allAUCFiringRates = [];
-    allAUCMTPower = [];
-    allAUCFFTAmplitude = [];
-    allAUCFFTPhase = [];
+for measureType = 1:2 % 1 - DPrime, 2 - AUC
     
-    for i=1:numGoodSessions
-        disp(['Getting AUC/dPrime for session: ' num2str(i)]);
-        allAUCFiringRates = cat(1,allAUCFiringRates,combineDataAcrossBothArrays(getAUC(goodFiringRates{i}(:,conditionsToUse),'A',comparisonType,displayAUCFlag)));
-        allAUCMTPower = cat(1,allAUCMTPower,combineDataAcrossBothArrays(getAUC(goodMTPower{i}(:,conditionsToUse),'A',comparisonType,displayAUCFlag)));
-        allAUCFFTAmplitude = cat(1,allAUCFFTAmplitude,combineDataAcrossBothArrays(getAUC(goodFFTVals{i}(:,conditionsToUse),'A',comparisonType,displayAUCFlag)));
-        allAUCFFTPhase = cat(1,allAUCFFTPhase,combineDataAcrossBothArrays(getAUC(goodFFTVals{i}(:,conditionsToUse),'P',comparisonType,displayAUCFlag)));
+    if measureType==1
+        measureName = 'DPrime';
+    elseif measureType==2
+        measureName = 'AUC';
     end
-    
-    for pos=1:3
-        if pos==1 % MTPower
-            tmpData = allAUCMTPower; tmpFreq = freqValsMT;
-        elseif pos==2 % FFT Amplitude
-            tmpData = allAUCFFTAmplitude; tmpFreq = freqValsFFT(1:size(tmpData,2));
-        elseif pos==3 % FFT Phase
-            tmpData = allAUCFFTPhase; tmpFreq = freqValsFFT(1:size(tmpData,2));
+    for comparisonType =  1:2    % 1 - Att In-out, 2 - H vs M
+        allMeasuresFiringRates = [];
+        allMeasuresMTPower = [];
+        
+        for i=1:numGoodSessions
+            disp(['Getting ' measureName ' for session: ' num2str(i)]);
+            allMeasuresFiringRates = cat(1,allMeasuresFiringRates,combineDataAcrossBothArrays(getAUC(goodFiringRates{i}(:,conditionsToUse),'A',comparisonType,measureType)));
+            allMeasuresMTPower = cat(1,allMeasuresMTPower,combineDataAcrossBothArrays(getAUC(goodMTPower{i}(:,conditionsToUse),'A',comparisonType,measureType)));
         end
         
-        plotData(hPlots(4+comparisonType,pos),tmpFreq,squeeze(tmpData(:,:,1)),colorsForComparison{comparisonType}{1});
-        plotData(hPlots(4+comparisonType,pos),tmpFreq,squeeze(tmpData(:,:,2)),colorsForComparison{comparisonType}{2});
+        % MT Power
+        plotData(hPlots(comparisonType,3+measureType),freqValsMT,squeeze(allMeasuresMTPower(:,:,1)),colorsForComparison{comparisonType}{1});
+        plotData(hPlots(comparisonType,3+measureType),freqValsMT,squeeze(allMeasuresMTPower(:,:,2)),colorsForComparison{comparisonType}{2});
         
         % Compare with AUC of firing rate
-        plotData(hPlots(4+comparisonType,pos),tmpFreq,repmat(squeeze(allAUCFiringRates(:,:,1)),1,length(tmpFreq)),colorsForComparison{comparisonType}{1});
-        plotData(hPlots(4+comparisonType,pos),tmpFreq,repmat(squeeze(allAUCFiringRates(:,:,2)),1,length(tmpFreq)),colorsForComparison{comparisonType}{2});
+        plotData(hPlots(comparisonType,3+measureType),freqValsMT,repmat(squeeze(allMeasuresFiringRates(:,:,1)),1,length(freqValsMT)),colorsForComparison{comparisonType}{1});
+        plotData(hPlots(comparisonType,3+measureType),freqValsMT,repmat(squeeze(allMeasuresFiringRates(:,:,2)),1,length(freqValsMT)),colorsForComparison{comparisonType}{2});
         
-        title(hPlots(4+comparisonType,pos),legendForComparison{comparisonType});
+        title(hPlots(comparisonType,3+measureType),legendForComparison{comparisonType});
     end
 end
 end
@@ -215,11 +187,11 @@ for i=1:num1
     end
 end
 end
-function y=getAUC(x,condition,comparisonType,displayAUCFlag)
+function y=getAUC(x,condition,comparisonType,measureType)
 
 if ~exist('condition','var');       condition = 'A';                    end
 if ~exist('comparisonType','var');  comparisonType = 1;                 end
-if ~exist('displayAUCFlag','var');          displayAUCFlag=1;           end
+if ~exist('measureType','var');     measureType=1;                       end
 
 if (size(x,1)~=2) || (size(x,2)~=4)
     error('Data matrix has inconsistent size');
@@ -250,10 +222,10 @@ for i=1:2
         if xSize==2 % Firing Rate
             tmpData = zeros(numElecs,1);
             for k=1:numElecs
-                if displayAUCFlag
+                if measureType==1
+                    tmpData(k) = getDPrime(d1(k,:),d2(k,:));               
+                elseif measureType==2
                     tmpData(k) = ROCAnalysis(d1(k,:),d2(k,:));
-                else
-                    tmpData(k) = getDPrime(d1(k,:),d2(k,:));
                 end
             end
         else % LFP power or phase
@@ -261,10 +233,10 @@ for i=1:2
             tmpData = zeros(numElecs,numFreqs);
             for k=1:numElecs
                 for f=1:numFreqs
-                    if displayAUCFlag
-                        tmpData(k,f) = ROCAnalysis(squeeze(d1(k,f,:)),squeeze(d2(k,f,:)));
-                    else
+                    if measureType==1
                         tmpData(k,f) = getDPrime(squeeze(d1(k,f,:)),squeeze(d2(k,f,:)));
+                    elseif measureType==2
+                        tmpData(k,f) = ROCAnalysis(squeeze(d1(k,f,:)),squeeze(d2(k,f,:)));
                     end
                 end
             end
