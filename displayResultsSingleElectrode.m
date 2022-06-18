@@ -3,11 +3,12 @@
 % numTrialCutoff - only select sessions which have more than these number of trials
 % TWNum - TW product for Multi-taper analysis
 
-function displayResultsSingleElectrode(conditionType,targetOnsetMatchingChoice,numTrialCutoff,TWNum)
+function displayResultsSingleElectrode(conditionType,targetOnsetMatchingChoice,numTrialCutoff,TWNum,showAUCFlag)
 
 if ~exist('targetOnsetMatchingChoice','var'); targetOnsetMatchingChoice=3; end
 if ~exist('numTrialCutoff','var');            numTrialCutoff=10;        end
 if ~exist('TWNum','var');                   TWNum=3;                    end
+if ~exist('showAUCFlag','var');             showAUCFlag=0;              end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Options %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 colorNames = 'brcm'; % Attend-In Hit, Attend-Out Hit, Attend-In Miss, Attend-Out Miss: This is the order in which data is plotted
@@ -23,7 +24,7 @@ numSessions = length(allTargetOnsetTimes0);
 numConditions = length(allTargetOnsetTimes0{1});
 
 %%%%%%%%%%%%%%%%%%%% Get good StimIndices %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-targetTimeBinWidthMS = 100;
+targetTimeBinWidthMS = 250;
 goodStimNums = getGoodStimNums(allTargetOnsetTimes0,targetOnsetMatchingChoice,targetTimeBinWidthMS);
 
 %%%%%%%%%%%%%%%%%%%% Select only good stimIndices %%%%%%%%%%%%%%%%%%%%%%%%%
@@ -73,8 +74,12 @@ numGoodSessions = length(goodSessionList);
 disp(['Discarded sessions: ' num2str(badSessionList')]);
 
 %%%%%%%%%%%%%%%%%%%%%%%%% Display Mean Responses %%%%%%%%%%%%%%%%%%%%%%%%%%
-
-hPlots = getPlotHandles(2,5,[0.05 0.05 0.9 0.9],0.05,0.1,0);
+if showAUCFlag
+    numRows=5;
+else
+    numRows=4;
+end
+hPlots = getPlotHandles(2,numRows,[0.05 0.05 0.9 0.9],0.05,0.1,0);
 
 %%%%%%%%%%%%%%%%%%%%%%% Display TargetOnset Histogram %%%%%%%%%%%%%%%%%%%%%
 
@@ -136,8 +141,12 @@ plot(hPlots(2,3),tmpFreq,zeros(1,length(tmpFreq)),'k');
 title(hPlots(2,3),legendForComparison{2});
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%% Plot AUC %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-for measureType = 1:2 % 1 - DPrime, 2 - AUC
+if showAUCFlag
+    numMeasuresToShow=2;
+else
+    numMeasuresToShow=1;
+end
+for measureType = 1:numMeasuresToShow % 1 - DPrime, 2 - AUC
     
     if measureType==1
         measureName = 'DPrime';
