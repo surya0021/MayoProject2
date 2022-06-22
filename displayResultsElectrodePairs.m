@@ -46,11 +46,8 @@ if exist(pairwiseDataToSave,'file')
     load(pairwiseDataToSave,'pairwiseMeasureData','freqValsMT');
 else
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Get Data %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    if strcmp(measure,'phase')
-        [~,allMTMeasure0,~,allTargetOnsetTimes0,freqValsMT] = getMTPhaseSingleElectrode(TWNum);
-    elseif strcmp(measure,'power')
-        [~,allMTMeasure0,~,allTargetOnsetTimes0,freqValsMT] = getMTPowerSingleElectrode(TWNum);
-    end
+    [~,allMTMeasure0,~,allTargetOnsetTimes0,freqValsMT] = getMTValsSingleElectrode(TWNum,measure);
+    
     numSessions = length(allTargetOnsetTimes0);
     numConditions = length(allTargetOnsetTimes0{1});
     
@@ -208,7 +205,6 @@ for i=1:2
     ylabel(hPlots(i,2),'dPrime');
 end
 end
-
 function outMeasure = getMeasure(d1,d2,measure)
 
 [numFreqs,~,numTrials] = size(d1);
@@ -221,6 +217,8 @@ for i=1:numFreqs
         if strcmp(measure,'phase') % Get PPC
             outMeasure(i,t) = getPPC(tmpData1-tmpData2);
         elseif strcmp(measure,'power') % Get Correlation
+            cc = corrcoef(tmpData1,tmpData2);
+            outMeasure(i,t) = cc(1,2);
         end
     end
 end

@@ -1,19 +1,31 @@
-% This program saves phases computed using MT
+% This program saves phases and power computed using MT. Data from each
+% taper is saved separately.
 
-function [allFiringRates,allMTPhase,allNumTrials,allTargetOnsetTimes,freqValsMT] = getMTPhaseSingleElectrode(TWNum)
+function [allFiringRates,allMTVals,allNumTrials,allTargetOnsetTimes,freqValsMT] = getMTValsSingleElectrode(TWNum,measure)
 
 if ~exist('TWNum','var');                   TWNum=3;                    end
 
 tapers = [TWNum 2*TWNum-1];
 
 folderSavedData = fullfile(pwd,'savedData');
-fileNameSaveMT = fullfile(folderSavedData,['singleElectrodeMTPhase' num2str(TWNum) '.mat']);
+
+if strcmp(measure,'phase')
+    fileNameSaveMT = fullfile(folderSavedData,['singleElectrodeMTPhase' num2str(TWNum) '.mat']);
+else
+    fileNameSaveMT = fullfile(folderSavedData,['singleElectrodeMTPower' num2str(TWNum) '.mat']);
+end
 
 if exist(fileNameSaveMT,'file')
 
     disp(['Loading saved data in ' fileNameSaveMT]);
-    load(fileNameSaveMT,'allFiringRates','allMTPhase','allNumTrials','allTargetOnsetTimes','freqValsMT');
     
+    if strcmp(measure,'phase')
+        load(fileNameSaveMT,'allFiringRates','allMTPhase','allNumTrials','allTargetOnsetTimes','freqValsMT');
+        allMTVals = allMTPhase;
+    elseif strcmp(measure,'power')
+        load(fileNameSaveMT,'allFiringRates','allMTPower','allNumTrials','allTargetOnsetTimes','freqValsMT');
+        allMTVals = allMTPower;
+    end
 else
     
     %%%%%%%%%%%%%%%%%%%%%%%%%% Get Experimental Details %%%%%%%%%%%%%%%%%%%%%%%
@@ -40,6 +52,7 @@ else
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     allFiringRates = cell(1,numSessions);
     allMTPhase = cell(1,numSessions);
+    allMTPower = cell(1,numSessions);
     allNumTrials = cell(1,numSessions);
     allTargetOnsetTimes = cell(1,numSessions);
     
@@ -48,9 +61,10 @@ else
         data = load(fullfile(folderSavedData,'neuralData',fileNameStringListAll{s}));
         disp([num2str(s) ': ' fileNameStringListAll{s}]);
         
-        clear firingRate mtPhase
+        clear firingRate mtPhase mtPower
         firingRate = cell(2,numConditions);
         mtPhase = cell(2,numConditions);
+        mtPower = cell(2,numConditions);
         
         for c=1:numConditions
             for array=1:2
@@ -62,15 +76,23 @@ else
                     tmpLFP = squeeze(data.goodLFPData{array,c}(e,:,timePos))';
                     [~,freqValsMT,J] = mtspectrumc_returnJ(tmpLFP,params);
                     mtPhase{array,c}(e,:,:,:) = angle(J);
+                    mtPower{array,c}(e,:,:,:) = abs(J).^2;
                 end
             end
         end
         allFiringRates{s} = firingRate;
         allMTPhase{s} = mtPhase;
+        allMTPower{s} = mtPower;
         allNumTrials{s} = data.nTrials;
         allTargetOnsetTimes{s} = data.targetOnsetTimes;
     end
     
-    save(fileNameSaveMT,'allFiringRates','allMTPhase','allNumTrials','allTargetOnsetTimes','freqValsMT','-v7.3');
+    if strcmp(measure,'phase')
+        save(fileNameSaveMT,'allFiringRates','allMTPhase','allNumTrials','allTargetOnsetTimes','freqValsMT','-v7.3');
+        allMTVals=allMTPhase;
+    elseif strcmp(measure,'power')
+        save(fileNameSaveMT,'allFiringRates','allMTPower','allNumTrials','allTargetOnsetTimes','freqValsMT','-v7.3');
+        allMTVals=allMTPower;
+    end
 end
 end
