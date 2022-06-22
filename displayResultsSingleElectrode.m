@@ -14,7 +14,12 @@ colorNamesList(1,:) = [0 0 1]; % Attend-In Hit Blue
 colorNamesList(2,:) = [1 0 0]; % Attend-Out Hit Red
 colorNamesList(3,:) = [0 1 1]; % Attend-In Miss Cyan
 colorNamesList(4,:) = [1 0 1]; % Attend-Out Miss: Magenta
-legendStrList = [{'AIH'} {'AOH'} {'AIM'} {'AOM'}];
+
+if strcmp(conditionType,'N')
+    legendStrList = [{'TIH'} {'TOH'} {'TIM'} {'TOM'}];
+else
+    legendStrList = [{'AIH'} {'AOH'} {'AIM'} {'AOM'}];
+end
 
 % To plot differences and dPrimes
 indicesToCompare{1} = [1 2]; % L vs R for Hits
@@ -69,6 +74,7 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% Get Condition Indices %%%%%%%%%%%%%%%%%%%%%%%%%%
 % The order of the 12 conditions is as follows: {'H0V','H1V','H0I','H1I','M0V','M1V','M0I','M1I','H0N','H1N','M0N','M1N'};
+fullOriginalConditionsList ={'HLV','HRV','HLI','HRI','MLV','MRV','MLI','MRI','HLN','HRN','MLN','MRN'};
 if strcmpi(conditionType(1),'V')
     conditionsToUse = [1 2 5 6];
 elseif strcmpi(conditionType(1),'N')
@@ -76,6 +82,7 @@ elseif strcmpi(conditionType(1),'N')
 elseif strcmpi(conditionType(1),'I')
     conditionsToUse = [3 4 7 8];
 end
+originalConditionsList = fullOriginalConditionsList(conditionsToUse);
 numConditionsToUse = length(conditionsToUse);
 
 %%%%%%%%%%%%%%%%%%%% Select sessions with numTrials>=cutoff %%%%%%%%%%%%%%%
@@ -105,7 +112,7 @@ legendStr = cell(1,numConditionsToUse);
 for i=1:numConditionsToUse
     h = histcounts(targetOnsetTimesForHistogram{i},targetOnsetEdges);
     plot(hPlots(1,1),c,h,'color',colorNamesList(i,:)); hold(hPlots(1,1),'on');
-    legendStr{i} = [legendStrList{i} '(' num2str(length(targetOnsetTimesForHistogram{i})) ')'];
+    legendStr{i} = [originalConditionsList{i} '(' num2str(length(targetOnsetTimesForHistogram{i})) ')'];
 end
 legend(hPlots(1,1),legendStr);
 xlabel(hPlots(1,1),'TargetOnset (ms)'); ylabel(hPlots(1,1),'Num Stim');
@@ -335,8 +342,4 @@ if showSEMFlag
 end
 hold(hPlot,'on');
 plot(hPlot,xs,mData,'color',colorName,'linewidth',2); 
-end
-function d = getDPrime(x1,x2)
-stdVal = sqrt((var(x1)+var(x2))/2);
-d = (mean(x1)- mean(x2))/stdVal;
 end
