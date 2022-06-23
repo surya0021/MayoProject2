@@ -4,19 +4,14 @@
 % TWNum - TW product for Multi-taper analysis
 % measure - phase or power
 
-function displayResultsElectrodePairs(conditionType,targetOnsetMatchingChoice,numTrialCutoff,TWNum,measure)
+% Modified from displayResultsElectrodePairs. Here, we compute PPC or
+% correlation across trials also (yielding measures similar to previous paper)
+function displayMeanResultsElectrodePairs(conditionType,targetOnsetMatchingChoice,numTrialCutoff,TWNum,measure)
 
 if ~exist('targetOnsetMatchingChoice','var'); targetOnsetMatchingChoice=3; end
 if ~exist('numTrialCutoff','var');            numTrialCutoff=10;        end
 if ~exist('TWNum','var');                   TWNum=3;                    end
 if ~exist('measure','var');                 measure='phase';            end
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Options %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% For the original conditions - AttLeftHit AttRightHit AttLeftMiss AttRightMiss
-% colorNamesList(1,:) = [0 0 1]; % Attend-In Hit Blue
-% colorNamesList(2,:) = [1 0 0]; % Attend-Out Hit Red
-% colorNamesList(3,:) = [0 1 1]; % Attend-In Miss Cyan
-% colorNamesList(4,:) = [1 0 1]; % Attend-Out Miss: Magenta
 
 %%%%%%%%%%%%%%%%%% To plot differences and dPrimes %%%%%%%%%%%%%%%%%%%%%%%%
 indicesToCompare{1} = [1 2]; % L vs R for Hits
@@ -49,11 +44,11 @@ originalConditionsList = fullOriginalConditionsList(conditionsToUse);
 numConditionsToUse = length(conditionsToUse);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%% Display Responses %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-hPlots = getPlotHandles(2,2,[0.05 0.05 0.9 0.9],0.05,0.1,0);
+hPlots = getPlotHandles(2,1,[0.05 0.05 0.9 0.9],0.05,0.1,0);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%% Check for intermediate data %%%%%%%%%%%%%%%%%%%
 folderSavedData = fullfile(pwd,'savedData');
-pairwiseDataToSave = fullfile(folderSavedData,['pairwiseData' conditionType num2str(targetOnsetMatchingChoice) 'N' num2str(numTrialCutoff) 'TW' num2str(TWNum) measure '.mat']);
+pairwiseDataToSave = fullfile(folderSavedData,['pairwiseMeanData' conditionType num2str(targetOnsetMatchingChoice) 'N' num2str(numTrialCutoff) 'TW' num2str(TWNum) measure '.mat']);
 
 if exist(pairwiseDataToSave,'file')
     disp(['Loading saved data in ' pairwiseDataToSave]);
@@ -92,7 +87,6 @@ else
     end
     
     clear allMTMeasure0
-
     %%%%%%%%%%%%%%%%%%%% Select sessions with numTrials>=cutoff %%%%%%%%%%%%%%%
     allNumTrialsMatrix = cell2mat(allNumTrials');
     minTrialsConditions = min(allNumTrialsMatrix(:,conditionsToUse),[],2);
@@ -119,7 +113,7 @@ else
                     for e2=e1+1:numElecs
                         d1 = squeeze(tmpData(e1,:,:,:));
                         d2 = squeeze(tmpData(e2,:,:,:));
-                        tmpMeasureList = cat(3,tmpMeasureList,getMeasure(d1,d2,measure));
+                        tmpMeasureList = cat(2,tmpMeasureList,getMeasure(d1,d2,measure));
                     end
                 end
                 pairwiseMeasureData{side,c,i} = tmpMeasureList;
@@ -133,7 +127,6 @@ end
 % The pairwise data is for conditions H0, H1, M0 and M1. This needs to be
 % converted to Hit(InVsOut), Miss(InVsOut), In(HitVsMiss) and Out(HitVsMiss)
 allMeans0 = cell(2,4);
-allDPrimes0 = cell(2,4);
 numGoodSessions = size(pairwiseMeasureData,3);
 for side=1:2
     for c=1:4 % Comparison 
@@ -141,75 +134,49 @@ for side=1:2
         disp(['side' num2str(side) '_' originalConditionsList{tmpIndexToCompare(1)} '-' originalConditionsList{tmpIndexToCompare(2)}]);
     
         meanDataAllSessions=[];
-        dPrimeDataAllSessions=[];
         for i=1:numGoodSessions
             tmpData1 = pairwiseMeasureData{side,tmpIndexToCompare(1),i};
             tmpData2 = pairwiseMeasureData{side,tmpIndexToCompare(2),i};
-            
-            [numFreqs,~,numPairs] = size(tmpData1);
-            
-            clear tmpMeanData tmpDPrime
-            tmpMeanData = zeros(numFreqs,numPairs);
-            tmpDPrimeData = zeros(numFreqs,numPairs);
-            for f=1:numFreqs
-                for p=1:numPairs
-                    x1 = squeeze(tmpData1(f,:,p));
-                    x2 = squeeze(tmpData2(f,:,p));
-                    tmpMeanData(f,p) = mean(x1)-mean(x2);
-                    tmpDPrimeData(f,p) = getDPrime(x1,x2);
-                end
-            end
-            meanDataAllSessions = cat(2,meanDataAllSessions,tmpMeanData);
-            dPrimeDataAllSessions = cat(2,dPrimeDataAllSessions,tmpDPrimeData);
+            meanDataAllSessions = cat(2,meanDataAllSessions,tmpData1-tmpData2);
         end
         allMeans0{side,c} = meanDataAllSessions;
-        allDPrimes0{side,c} = dPrimeDataAllSessions;
     end
 end
 
 allMeans = combineComparisonDataAcrossBothArrays(allMeans0);
-allDPrimes = combineComparisonDataAcrossBothArrays(allDPrimes0);
 
 % Plot Means
 for i=1:4
     if (i<3); plotPos = 1; else; plotPos=2; end
     plotData(hPlots(plotPos,1),freqValsMT,allMeans{i}',colorsForComparison{i},0);
-    plotData(hPlots(plotPos,2),freqValsMT,allDPrimes{i}',colorsForComparison{i},0);
 end
 % Plot SEMs
 for i=1:4
     if (i<3); plotPos = 1; else; plotPos=2; end
     plotData(hPlots(plotPos,1),freqValsMT,allMeans{i}',colorsForComparison{i},1);
-    plotData(hPlots(plotPos,2),freqValsMT,allDPrimes{i}',colorsForComparison{i},1);
 end
-for i=1:2
-    plot(hPlots(i,1),freqValsMT,zeros(1,length(freqValsMT)),'k--');
-    plot(hPlots(i,2),freqValsMT,zeros(1,length(freqValsMT)),'k--');
-    if strcmp(measure,'phase')
-        ylabel(hPlots(i,1),'\Delta PPC');
-    else
-        ylabel(hPlots(i,1),'\Delta Corr');
-    end
-    ylabel(hPlots(i,2),'dPrime');
-    legend(hPlots(i,1),legendForComparison(1:2));
-    legend(hPlots(i,2),legendForComparison(3:4));
+plot(hPlots(1,1),freqValsMT,zeros(1,length(freqValsMT)),'k--');
+plot(hPlots(2,1),freqValsMT,zeros(1,length(freqValsMT)),'k--');
+if strcmp(measure,'phase')
+    ylabel(hPlots(1,1),'\Delta PPC');
+else
+    ylabel(hPlots(1,1),'\Delta Corr');
 end
+legend(hPlots(1,1),legendForComparison(1:2));
+legend(hPlots(2,1),legendForComparison(3:4));
 end
 function outMeasure = getMeasure(d1,d2,measure)
 
-[numFreqs,~,numTrials] = size(d1);
-
-outMeasure = zeros(numFreqs,numTrials);
+numFreqs = size(d1,1);
+outMeasure = zeros(numFreqs,1);
 for i=1:numFreqs
-    for t=1:numTrials
-        tmpData1 = squeeze(d1(i,:,t));
-        tmpData2 = squeeze(d2(i,:,t));
-        if strcmp(measure,'phase') % Get PPC
-            outMeasure(i,t) = getPPC(tmpData1-tmpData2);
-        elseif strcmp(measure,'power') % Get Correlation
-            cc = corrcoef(tmpData1,tmpData2);
-            outMeasure(i,t) = cc(1,2);
-        end
+    tmpData1 = squeeze(d1(i,:,:));
+    tmpData2 = squeeze(d2(i,:,:));
+    if strcmp(measure,'phase') % Get PPC
+        outMeasure(i) = getPPC(tmpData1(:)-tmpData2(:));
+    elseif strcmp(measure,'power') % Get Correlation
+        cc = corrcoef(tmpData1(:),tmpData2(:));
+        outMeasure(i) = cc(1,2);
     end
 end
 end
