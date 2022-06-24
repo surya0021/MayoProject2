@@ -175,7 +175,7 @@ for i=1:numFreqs
     if strcmp(measure,'phase') % Get PPC
         outMeasure(i) = getPPC(tmpData1(:)-tmpData2(:));
     elseif strcmp(measure,'power') % Get Correlation
-        cc = corrcoef(tmpData1(:),tmpData2(:));
+        cc = corrcoef(mean(tmpData1,1),mean(tmpData2,1));
         outMeasure(i) = cc(1,2);
     end
 end

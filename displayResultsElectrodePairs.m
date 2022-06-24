@@ -1,15 +1,17 @@
 % conditionType: 'V', 'N' or 'I' (valid, neutral or invalid)
 % targetOnsetMatchingChoice: 1 - nothing, 2 - numtrials, 3 - mean matching (default)
 % numTrialCutoff - only select sessions which have more than these number of trials
-% TWNum - TW product for Multi-taper analysis
+% TWNum - TW product for Multi-taper analysis. If using FFT, this should be equal to numDivisions
 % measure - phase or power
+% useFFTFlag - uses FFT instead of MT
 
-function displayResultsElectrodePairs(conditionType,targetOnsetMatchingChoice,numTrialCutoff,TWNum,measure)
+function displayResultsElectrodePairs(conditionType,targetOnsetMatchingChoice,numTrialCutoff,TWNum,measure,useFFTFlag)
 
 if ~exist('targetOnsetMatchingChoice','var'); targetOnsetMatchingChoice=3; end
 if ~exist('numTrialCutoff','var');            numTrialCutoff=10;        end
 if ~exist('TWNum','var');                   TWNum=3;                    end
 if ~exist('measure','var');                 measure='phase';            end
+if ~exist('useFFTFlag','var');              useFFTFlag=0;               end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Options %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % For the original conditions - AttLeftHit AttRightHit AttLeftMiss AttRightMiss
@@ -53,14 +55,23 @@ hPlots = getPlotHandles(2,2,[0.05 0.05 0.9 0.9],0.05,0.1,0);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%% Check for intermediate data %%%%%%%%%%%%%%%%%%%
 folderSavedData = fullfile(pwd,'savedData');
-pairwiseDataToSave = fullfile(folderSavedData,['pairwiseData' conditionType num2str(targetOnsetMatchingChoice) 'N' num2str(numTrialCutoff) 'TW' num2str(TWNum) measure '.mat']);
+
+if useFFTFlag
+    pairwiseDataToSave = fullfile(folderSavedData,['pairwiseDataFFT' conditionType num2str(targetOnsetMatchingChoice) 'N' num2str(numTrialCutoff) 'TW' num2str(TWNum) measure '.mat']);
+else
+    pairwiseDataToSave = fullfile(folderSavedData,['pairwiseData' conditionType num2str(targetOnsetMatchingChoice) 'N' num2str(numTrialCutoff) 'TW' num2str(TWNum) measure '.mat']);
+end
 
 if exist(pairwiseDataToSave,'file')
     disp(['Loading saved data in ' pairwiseDataToSave]);
     load(pairwiseDataToSave,'pairwiseMeasureData','freqValsMT');
 else
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Get Data %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    [~,allMTMeasure0,~,allTargetOnsetTimes0,freqValsMT] = getMTValsSingleElectrode(TWNum,measure);
+    if useFFTFlag
+        [~,allMTMeasure0,~,allTargetOnsetTimes0,freqValsMT] = getFFTValsSingleElectrode(TWNum,measure); % Getting FFT Measures but calling them MT
+    else
+        [~,allMTMeasure0,~,allTargetOnsetTimes0,freqValsMT] = getMTValsSingleElectrode(TWNum,measure);
+    end
     
     numSessions = length(allTargetOnsetTimes0);
     numConditions = length(allTargetOnsetTimes0{1});
