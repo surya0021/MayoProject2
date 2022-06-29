@@ -33,7 +33,7 @@ legendForComparison{3} = 'In(H-M)';
 legendForComparison{4} = 'Out(H-M)';
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Get Data %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-[allFiringRates0,allMTPhase0,~,allTargetOnsetTimes0,freqValsMT] = getMTPhaseSingleElectrode(TWNum);
+[allFiringRates0,allMTPhase0,~,allTargetOnsetTimes0,freqValsMT] = getMTValsSingleElectrode(TWNum,'phase');
 numSessions = length(allTargetOnsetTimes0);
 numConditions = length(allTargetOnsetTimes0{1});
 
