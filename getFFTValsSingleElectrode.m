@@ -1,4 +1,4 @@
-% This program follows the same logic as getFFTValsSingleElectrode, but with important differences. 
+% This program follows the same logic as getMTValsSingleElectrode, but with important differences. 
 % When using MT, power and phase from each taper is saved separately,
 % yielding multiple values per trial, which are later used for single trial
 % analysis. Here, each trial is first divided into numDivisions segments.
@@ -79,7 +79,7 @@ else
                 for e=1:numElectrodes
                     for n=1:numDivisions
                         thisSegmentRange = segmentRangeList{n};
-                        timePos = find(timeVals>=thisSegmentRange(1),1) + (0:segmentLength-1);
+                        timePos = find(timeVals<=thisSegmentRange(1),1,'last') + (0:segmentLength-1);
                         
                         firingRate{array,c}(e,1,n,:) = getSpikeCounts(data.goodSpikeData{array,c}(e,:),thisSegmentRange)./diff(thisSegmentRange);
                     
