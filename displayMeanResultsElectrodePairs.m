@@ -16,7 +16,7 @@ if ~exist('measure','var');                 measure='phase';            end
 %%%%%%%%%%%%%%%%%% To plot differences and dPrimes %%%%%%%%%%%%%%%%%%%%%%%%
 indicesToCompare{1} = [1 2]; % L vs R for Hits
 indicesToCompare{2} = [3 4]; % L vs R for Misses
-indicesToCompare{3} = [1 3]; % H vs M for Attend
+indicesToCompare{3} = [1 3]; % H vs M for Attend L
 indicesToCompare{4} = [2 4]; % H vs M for Attend R
 
 colorsForComparison{1} = [0 1 0]; % Green
@@ -52,10 +52,10 @@ pairwiseDataToSave = fullfile(folderSavedData,['pairwiseMeanData' conditionType 
 
 if exist(pairwiseDataToSave,'file')
     disp(['Loading saved data in ' pairwiseDataToSave]);
-    load(pairwiseDataToSave,'pairwiseMeasureData','freqValsMT');
+    load(pairwiseDataToSave,'pairwiseMeasureDataFR','pairwiseMeasureDataMT','freqValsMT');
 else
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Get Data %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    [~,allMTMeasure0,~,allTargetOnsetTimes0,freqValsMT] = getMTValsSingleElectrode(TWNum,measure);
+    [allFiringRates0,allMTMeasure0,~,allTargetOnsetTimes0,freqValsMT] = getMTValsSingleElectrode(TWNum,measure);
     
     numSessions = length(allTargetOnsetTimes0);
     numConditions = length(allTargetOnsetTimes0{1});
@@ -65,28 +65,32 @@ else
     goodStimNums = getGoodStimNums(allTargetOnsetTimes0,targetOnsetMatchingChoice,targetTimeBinWidthMS);
     
     %%%%%%%%%%%%%%%%%%%% Select only good stimIndices %%%%%%%%%%%%%%%%%%%%%%%%%
+    allFiringRates = cell(1,numSessions);
     allMTMeasure = cell(1,numSessions);
     allNumTrials = cell(1,numSessions);
     allTargetOnsetTimes = cell(1,numSessions);
     
     for i=1:numSessions
+        tmpFiringRates = cell(2,numConditions);
         tmpMTMeasure = cell(2,numConditions);
         tmpAllNumTrials = zeros(1,numConditions);
         tmpTargetOnsetTimes = cell(1,numConditions);
         
         for k=1:numConditions
             for j=1:2
+                tmpFiringRates{j,k} = allFiringRates0{i}{j,k}(:,:,:,goodStimNums{i}{k});
                 tmpMTMeasure{j,k} = allMTMeasure0{i}{j,k}(:,:,:,goodStimNums{i}{k});
             end
             tmpAllNumTrials(k) = length(goodStimNums{i}{k});
             tmpTargetOnsetTimes{k} = allTargetOnsetTimes0{i}{k}(goodStimNums{i}{k});
         end
+        allFiringRates{i} = tmpFiringRates;
         allMTMeasure{i} = tmpMTMeasure;
         allNumTrials{i} = tmpAllNumTrials;
         allTargetOnsetTimes{i} = tmpTargetOnsetTimes;
     end
     
-    clear allMTMeasure0
+    clear allFiringRates0 allMTMeasure0
     %%%%%%%%%%%%%%%%%%%% Select sessions with numTrials>=cutoff %%%%%%%%%%%%%%%
     allNumTrialsMatrix = cell2mat(allNumTrials');
     minTrialsConditions = min(allNumTrialsMatrix(:,conditionsToUse),[],2);
@@ -99,72 +103,106 @@ else
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Get Data %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    goodFiringRates = allFiringRates(goodSessionList);
     goodMTMeasure = allMTMeasure(goodSessionList);
-    pairwiseMeasureData = cell(2,numConditionsToUse,numGoodSessions);
+    pairwiseMeasureDataFR = cell(2,numConditionsToUse,numGoodSessions);
+    pairwiseMeasureDataMT = cell(2,numConditionsToUse,numGoodSessions);
     for side=1:2
         for c=1:numConditionsToUse
             for i=1:numGoodSessions
                 disp(['side' num2str(side) '_' originalConditionsList{c} '_session' num2str(i)]);
-                tmpData = goodMTMeasure{i}{side,conditionsToUse(c)};
-                numElecs = size(tmpData,1);
+                tmpDataFR0 = goodFiringRates{i}{side,conditionsToUse(c)};
+                tmpDataMT = goodMTMeasure{i}{side,conditionsToUse(c)};
+                [numElecs,numFreqs,numTapers,~] = size(tmpDataMT);
+                % matching the dimensions of MT and firing rate (elec x
+                % freq x tapers x trials)
+                tmpDataFR = repmat(tmpDataFR0,[1 numFreqs numTapers 1]);
                 
-                tmpMeasureList = [];
+                tmpMeasureListFR = [];
+                tmpMeasureListMT = [];
                 for e1=1:numElecs
                     for e2=e1+1:numElecs
-                        d1 = squeeze(tmpData(e1,:,:,:));
-                        d2 = squeeze(tmpData(e2,:,:,:));
-                        tmpMeasureList = cat(2,tmpMeasureList,getMeasure(d1,d2,measure));
+                        d1MT = squeeze(tmpDataMT(e1,:,:,:));
+                        d2MT = squeeze(tmpDataMT(e2,:,:,:));
+                        tmpMeasureListMT = cat(2,tmpMeasureListMT,getMeasure(d1MT,d2MT,measure));
+                        
+                        d1FR = squeeze(tmpDataFR(e1,:,:,:));
+                        d2FR = squeeze(tmpDataFR(e2,:,:,:));
+                        tmpMeasureListFR = cat(2,tmpMeasureListFR,getMeasure(d1FR,d2FR,'power'));
                     end
                 end
-                pairwiseMeasureData{side,c,i} = tmpMeasureList;
+                pairwiseMeasureDataFR{side,c,i} = tmpMeasureListFR;
+                pairwiseMeasureDataMT{side,c,i} = tmpMeasureListMT;
             end
         end
     end
-    save(pairwiseDataToSave,'pairwiseMeasureData','freqValsMT');
+%     save(pairwiseDataToSave,'pairwiseMeasureDataFR','pairwiseMeasureDataMT','freqValsMT');
 end
 
 %%%%%%%%%%%%%%%%%%%% Get Means and DPrimes %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % The pairwise data is for conditions H0, H1, M0 and M1. This needs to be
 % converted to Hit(InVsOut), Miss(InVsOut), In(HitVsMiss) and Out(HitVsMiss)
-allMeans0 = cell(2,4);
-numGoodSessions = size(pairwiseMeasureData,3);
-for side=1:2
-    for c=1:4 % Comparison 
-        tmpIndexToCompare = indicesToCompare{c};
-        disp(['side' num2str(side) '_' originalConditionsList{tmpIndexToCompare(1)} '-' originalConditionsList{tmpIndexToCompare(2)}]);
-    
-        meanDataAllSessions=[];
-        for i=1:numGoodSessions
-            tmpData1 = pairwiseMeasureData{side,tmpIndexToCompare(1),i};
-            tmpData2 = pairwiseMeasureData{side,tmpIndexToCompare(2),i};
-            meanDataAllSessions = cat(2,meanDataAllSessions,tmpData1-tmpData2);
+for dataType=1:2  % MT measure and Firing rates
+    clear allMeans pairwiseMeasureData
+    if dataType==1
+        pairwiseMeasureData = pairwiseMeasureDataMT;
+    elseif dataType==2
+        pairwiseMeasureData = pairwiseMeasureDataFR;
+    end
+    allMeans0 = cell(2,4);
+    numGoodSessions = size(pairwiseMeasureData,3);
+    for side=1:2
+        for c=1:4 % Comparison
+            tmpIndexToCompare = indicesToCompare{c};
+            disp(['side' num2str(side) '_' originalConditionsList{tmpIndexToCompare(1)} '-' originalConditionsList{tmpIndexToCompare(2)}]);
+            
+            meanDataAllSessions=[];
+            for i=1:numGoodSessions
+                tmpData1 = pairwiseMeasureData{side,tmpIndexToCompare(1),i};
+                tmpData2 = pairwiseMeasureData{side,tmpIndexToCompare(2),i};
+                meanDataAllSessions = cat(2,meanDataAllSessions,tmpData1-tmpData2);
+            end
+            allMeans0{side,c} = meanDataAllSessions;
         end
-        allMeans0{side,c} = meanDataAllSessions;
+    end
+    allMeans = combineComparisonDataAcrossBothArrays(allMeans0);
+    if dataType==1
+        allMeansMT = allMeans;
+    elseif dataType==2
+        allMeansFR = allMeans;
+    end
+end
+% Plot Means
+pMT = zeros(1,4); pFR = zeros(1,4);
+for i=1:4
+    if (i<3); plotPos = 1; else; plotPos=2; end
+    pMT(i) = plotData(hPlots(plotPos,1),freqValsMT,allMeansMT{i}',colorsForComparison{i},0); %#ok<AGROW>
+    hold(hPlots(plotPos,1),'on')
+    if strcmp(measure,'power') % Plot firing rate correlation with power correlation only
+        pFR(i) = plotData(hPlots(plotPos,1),freqValsMT,allMeansFR{i}',colorsForComparison{i},1); %#ok<AGROW>
     end
 end
 
-allMeans = combineComparisonDataAcrossBothArrays(allMeans0);
-
-% Plot Means
-for i=1:4
-    if (i<3); plotPos = 1; else; plotPos=2; end
-    plotData(hPlots(plotPos,1),freqValsMT,allMeans{i}',colorsForComparison{i},0);
-end
-% Plot SEMs
-for i=1:4
-    if (i<3); plotPos = 1; else; plotPos=2; end
-    plotData(hPlots(plotPos,1),freqValsMT,allMeans{i}',colorsForComparison{i},1);
-end
 plot(hPlots(1,1),freqValsMT,zeros(1,length(freqValsMT)),'k--');
 plot(hPlots(2,1),freqValsMT,zeros(1,length(freqValsMT)),'k--');
 if strcmp(measure,'phase')
     ylabel(hPlots(1,1),'\Delta PPC');
+    xlabel(hPlots(1,1),'Frequency');
 else
     ylabel(hPlots(1,1),'\Delta Corr');
+    xlabel(hPlots(1,1),'Frequency');
 end
-legend(hPlots(1,1),legendForComparison(1:2));
-legend(hPlots(2,1),legendForComparison(3:4));
+if strcmp(measure,'power')
+    legendForComparisonMT = cellfun(@(x) [x ' Power'],legendForComparison,'un',0);
+    legendForComparisonFR = cellfun(@(x) [x ' Firing rate'],legendForComparison,'un',0);
+    legend(hPlots(1,1),[pMT(1:2) pFR(1:2)],[legendForComparisonMT(1:2) legendForComparisonFR(1:2)]);
+    legend(hPlots(2,1),[pMT(3:4) pFR(3:4)],[legendForComparisonMT(3:4) legendForComparisonFR(3:4)]);
+else
+    legend(hPlots(1,1),pMT(1:2),legendForComparison(1:2));
+    legend(hPlots(2,1),pMT(3:4),legendForComparison(3:4));
 end
+end
+
 function outMeasure = getMeasure(d1,d2,measure)
 
 numFreqs = size(d1,1);
@@ -173,7 +211,7 @@ for i=1:numFreqs
     tmpData1 = squeeze(d1(i,:,:));
     tmpData2 = squeeze(d2(i,:,:));
     if strcmp(measure,'phase') % Get PPC
-        outMeasure(i) = getPPC(tmpData1(:)-tmpData2(:));
+        outMeasure(i) = getPPC(circ_mean(tmpData1-tmpData2,[],1));
     elseif strcmp(measure,'power') % Get Correlation
         cc = corrcoef(mean(tmpData1,1),mean(tmpData2,1));
         outMeasure(i) = cc(1,2);
@@ -184,14 +222,14 @@ function combinedData = combineComparisonDataAcrossBothArrays(data)
 
 combinedData = cell(1,4);
 
-% Input data has size of 2x4. Rows correspond to sides L and R.
+% Input data has size of 2x4. Rows correspond to array R and L respectively.
 % The 4 comparisons are 1-2, 3-4, 1-3 and 3-4, corresponding to H0-H1,
 % M0-M1, H0-M0 and H1-M1. Here 0 and 1 correspond to sides L and R.
 
 % AttIn-AttOut Hit & Miss
-% The comparison 1-2 (H0-H1) corresponds to AttIn-out Hit for side 0 and
-% AttOut - AttIn Hit for side 1. Therefore We can get AttIn-Out Hit by
-% simply flipping the values for side 1 and concatenating
+% The comparison 1-2 (H0-H1) corresponds to AttIn-out Hit for array 1(R) and
+% AttOut - AttIn Hit for array 2(L). Therefore We can get AttIn-Out Hit by
+% simply flipping the values for array 2 and concatenating
 
 combinedData{1} = [data{1,1} -data{2,1}];
 combinedData{2} = [data{1,2} -data{2,2}];
@@ -204,22 +242,25 @@ combinedData{3} = [data{1,3} data{2,4}];
 combinedData{4} = [data{1,4} data{2,3}];
 
 end
-function plotData(hPlot,xs,data,colorName,showSEMFlag)
+function p = plotData(hPlot,xs,data,colorName,plotFRFlag)
 
-if ~exist('showSEMFlag','var');     showSEMFlag = 1;                    end
+if ~exist('plotFRFlag','var');     plotFRFlag = 1;                    end
 
+if plotFRFlag
+    lineType = '--';
+else
+    lineType = '-';
+end
 tmp=rgb2hsv(colorName); 
 tmp2 = [tmp(1) tmp(2)/3 tmp(3)];
 colorName2 = hsv2rgb(tmp2); % Same color with more saturation
 
 mData = squeeze(mean(data,1));
+sData = std(data,[],1)/sqrt(size(data,1));
+xsLong = [xs fliplr(xs)];
+ysLong = [mData+sData fliplr(mData-sData)];
+patch(xsLong,ysLong,colorName2,'EdgeColor','none','parent',hPlot);
 
-if showSEMFlag 
-    sData = std(data,[],1)/sqrt(size(data,1));    
-    xsLong = [xs fliplr(xs)];
-    ysLong = [mData+sData fliplr(mData-sData)];
-    patch(xsLong,ysLong,colorName2,'EdgeColor','none','parent',hPlot);
-end
 hold(hPlot,'on');
-plot(hPlot,xs,mData,'color',colorName,'linewidth',2); 
+p = plot(hPlot,xs,mData,'color',colorName,'linewidth',2,'lineStyle',lineType); 
 end
