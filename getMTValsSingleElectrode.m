@@ -71,7 +71,7 @@ else
                 numElectrodes = size(data.goodLFPData{array,c},1);
                 
                 for e=1:numElectrodes
-                    firingRate{array,c}(e,:) = getSpikeCounts(data.goodSpikeData{array,c}(e,:),timeRange)./diff(timeRange);
+                    firingRate{array,c}(e,1,1,:) = getSpikeCounts(data.goodSpikeData{array,c}(e,:),timeRange)./diff(timeRange);
                     
                     tmpLFP = squeeze(data.goodLFPData{array,c}(e,:,timePos))';
                     [~,freqValsMT,J] = mtspectrumc_returnJ(tmpLFP,params);
