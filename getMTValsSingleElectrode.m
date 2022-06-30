@@ -87,11 +87,16 @@ else
         allTargetOnsetTimes{s} = data.targetOnsetTimes;
     end
     
+    % Since both measures have been computed, save both.
+    fileNameSaveMTTMP = fullfile(folderSavedData,['singleElectrodeMTPhase' num2str(TWNum) '.mat']);
+    save(fileNameSaveMTTMP,'allFiringRates','allMTPhase','allNumTrials','allTargetOnsetTimes','freqValsMT','-v7.3');
+    
+    fileNameSaveMTTMP = fullfile(folderSavedData,['singleElectrodeMTPower' num2str(TWNum) '.mat']);
+    save(fileNameSaveMTTMP,'allFiringRates','allMTPower','allNumTrials','allTargetOnsetTimes','freqValsMT','-v7.3');
+    
     if strcmp(measure,'phase')
-        save(fileNameSaveMT,'allFiringRates','allMTPhase','allNumTrials','allTargetOnsetTimes','freqValsMT','-v7.3');
         allMTVals=allMTPhase;
     elseif strcmp(measure,'power')
-        save(fileNameSaveMT,'allFiringRates','allMTPower','allNumTrials','allTargetOnsetTimes','freqValsMT','-v7.3');
         allMTVals=allMTPower;
     end
 end

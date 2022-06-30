@@ -136,7 +136,7 @@ else
             end
         end
     end
-%     save(pairwiseDataToSave,'pairwiseMeasureDataFR','pairwiseMeasureDataMT','freqValsMT');
+    save(pairwiseDataToSave,'pairwiseMeasureDataFR','pairwiseMeasureDataMT','freqValsMT');
 end
 
 %%%%%%%%%%%%%%%%%%%% Get Means and DPrimes %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -176,10 +176,10 @@ end
 pMT = zeros(1,4); pFR = zeros(1,4);
 for i=1:4
     if (i<3); plotPos = 1; else; plotPos=2; end
-    pMT(i) = plotData(hPlots(plotPos,1),freqValsMT,allMeansMT{i}',colorsForComparison{i},0); %#ok<AGROW>
+    pMT(i) = plotData(hPlots(plotPos,1),freqValsMT,allMeansMT{i}',colorsForComparison{i},0);
     hold(hPlots(plotPos,1),'on')
     if strcmp(measure,'power') % Plot firing rate correlation with power correlation only
-        pFR(i) = plotData(hPlots(plotPos,1),freqValsMT,allMeansFR{i}',colorsForComparison{i},1); %#ok<AGROW>
+        pFR(i) = plotData(hPlots(plotPos,1),freqValsMT,allMeansFR{i}',colorsForComparison{i},1);
     end
 end
 

@@ -98,11 +98,14 @@ else
         allTargetOnsetTimes{s} = data.targetOnsetTimes;
     end
     
+    fileNameSaveFFT = fullfile(folderSavedData,['singleElectrodeFFTPhase' num2str(numDivisions) '.mat']);
+    save(fileNameSaveFFT,'allFiringRates','allFFTPhase','allNumTrials','allTargetOnsetTimes','freqValsFFT','-v7.3');
+    fileNameSaveFFT = fullfile(folderSavedData,['singleElectrodeFFTPower' num2str(numDivisions) '.mat']);
+    save(fileNameSaveFFT,'allFiringRates','allFFTPower','allNumTrials','allTargetOnsetTimes','freqValsFFT','-v7.3');
+    
     if strcmp(measure,'phase')
-        save(fileNameSaveFFT,'allFiringRates','allFFTPhase','allNumTrials','allTargetOnsetTimes','freqValsFFT','-v7.3');
         allFFTVals=allFFTPhase;
     elseif strcmp(measure,'power')
-        save(fileNameSaveFFT,'allFiringRates','allFFTPower','allNumTrials','allTargetOnsetTimes','freqValsFFT','-v7.3');
         allFFTVals=allFFTPower;
     end
 end

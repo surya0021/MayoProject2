@@ -131,19 +131,16 @@ else
                 tmpDataMT = goodMTMeasure{i}{side,conditionsToUse(c)};
                 tmpDataFR0 = goodFiringRates{i}{side,conditionsToUse(c)};
                 
-                % making the dimensions of tmpData(MTVals) and tmpDataFR0(firing rates) equal.
-                
-                sizeMT = size(tmpDataMT); sizeFR = size(tmpDataFR0);
-                repDim = [1 1 1 1];
-                if sizeMT(2)~=sizeFR(2) && sizeMT(3)==sizeFR(3)  % when freqVals don't match but divisions/taper match.
-                   repDim(2) = sizeMT(2); 
-                elseif sizeMT(2)~=sizeFR(2) && sizeMT(3)~=sizeFR(3) % when freqVals and divisions/taper don't match.
-                    repDim(2) = sizeMT(2);
-                    repDim(3) = sizeMT(3);
-                end
-                tmpDataFR = repmat(tmpDataFR0,repDim);
-                if ~isequal(sizeMT,size(tmpDataFR))
-                    error('Dimensions of MT and firing rate matrix does not match')
+                if useFFTFlag==1
+                    % making the dimensions of tmpDataMT(FFTVals) and tmpDataFR0(firing rates) equal.         
+                    sizeMT = size(tmpDataMT); sizeFR = size(tmpDataFR0);
+                    repDim = [1 1 1 1];
+                    if prod(sizeMT([1 3:4])==sizeFR([1 3:4]))  % Make sure all dimensions except 2 match
+                        repDim(2) = sizeMT(2);
+                    else
+                        error('Dimensions of MT and firing rate matrix does not match');
+                    end
+                    tmpDataFR = repmat(tmpDataFR0,repDim);
                 end
                 
                 numElecs = size(tmpDataMT,1);
@@ -258,7 +255,6 @@ if useFFTFlag==1
         end
         pFR(i,2) = plotData(hPlots(plotPos,2),freqValsMT,allDPrimesFR{i}',colorsForComparison{i},1);
     end
-    
 end
 if useFFTFlag==1 % Condition where firing rate correlations are plotted
     legendForComparisonMTdPrime = cellfun(@(x) [x ' ' measure],legendForComparison,'un',0);
