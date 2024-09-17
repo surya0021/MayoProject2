@@ -3,12 +3,12 @@
 % numTrialCutoff - only select sessions which have more than these number of trials
 % TWNum - TW product for Multi-taper analysis
 
-function displayResultsSingleElectrode(conditionType,targetOnsetMatchingChoice,numTrialCutoff,TWNum)
+function [allMeanMTPower,allMeanFiringRates,allDPrimesMTPower,allDPrimesFiringRates] = displayResultsSingleElectrode(conditionType,targetOnsetMatchingChoice,numTrialCutoff,TWNum,displayFlag)
 
 if ~exist('targetOnsetMatchingChoice','var'); targetOnsetMatchingChoice=3; end
 if ~exist('numTrialCutoff','var');            numTrialCutoff=10;        end
 if ~exist('TWNum','var');                   TWNum=3;                    end
-
+if ~exist('displayFlag','var');             displayFlag=1;              end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Options %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 colorNamesList(1,:) = [0 0 1]; % Attend-In Hit Blue
 colorNamesList(2,:) = [1 0 0]; % Attend-Out Hit Red
@@ -95,28 +95,28 @@ numGoodSessions = length(goodSessionList);
 disp(['Discarded sessions: ' num2str(badSessionList')]);
 
 %%%%%%%%%%%%%%%%%%%%%%%%% Display Mean Responses %%%%%%%%%%%%%%%%%%%%%%%%%%
-numRows=4;
-hPlots = getPlotHandles(2,numRows,[0.05 0.05 0.9 0.9],0.05,0.1,0);
-
-%%%%%%%%%%%%%%%%%%%%%%% Display TargetOnset Histogram %%%%%%%%%%%%%%%%%%%%%
-targetOnsetTimesForHistogram = cell(1,numConditionsToUse);
-for i=1:numGoodSessions
-    for j=1:numConditionsToUse
-        targetOnsetTimesForHistogram{j} = cat(2,targetOnsetTimesForHistogram{j},allTargetOnsetTimes{goodSessionList(i)}{conditionsToUse(j)});
+if displayFlag
+    numRows=4;
+    hPlots = getPlotHandles(2,numRows,[0.05 0.05 0.9 0.9],0.05,0.1,0);
+    %%%%%%%%%%%%%%%%%%%%%%% Display TargetOnset Histogram %%%%%%%%%%%%%%%%%%%%%
+    targetOnsetTimesForHistogram = cell(1,numConditionsToUse);
+    for i=1:numGoodSessions
+        for j=1:numConditionsToUse
+            targetOnsetTimesForHistogram{j} = cat(2,targetOnsetTimesForHistogram{j},allTargetOnsetTimes{goodSessionList(i)}{conditionsToUse(j)});
+        end
     end
+    
+    targetOnsetEdges = 500:targetTimeBinWidthMS:5500;
+    c = 500+targetTimeBinWidthMS/2:targetTimeBinWidthMS:5500;
+    legendStr = cell(1,numConditionsToUse);
+    for i=1:numConditionsToUse
+        h = histcounts(targetOnsetTimesForHistogram{i},targetOnsetEdges);
+        plot(hPlots(1,1),c,h,'color',colorNamesList(i,:)); hold(hPlots(1,1),'on');
+        legendStr{i} = [originalConditionsList{i} '(' num2str(length(targetOnsetTimesForHistogram{i})) ')'];
+    end
+    legend(hPlots(1,1),legendStr);
+    xlabel(hPlots(1,1),'TargetOnset (ms)'); ylabel(hPlots(1,1),'Num Stim');
 end
-
-targetOnsetEdges = 500:targetTimeBinWidthMS:5500;
-c = 500+targetTimeBinWidthMS/2:targetTimeBinWidthMS:5500;
-legendStr = cell(1,numConditionsToUse);
-for i=1:numConditionsToUse
-    h = histcounts(targetOnsetTimesForHistogram{i},targetOnsetEdges);
-    plot(hPlots(1,1),c,h,'color',colorNamesList(i,:)); hold(hPlots(1,1),'on');
-    legendStr{i} = [originalConditionsList{i} '(' num2str(length(targetOnsetTimesForHistogram{i})) ')'];
-end
-legend(hPlots(1,1),legendStr);
-xlabel(hPlots(1,1),'TargetOnset (ms)'); ylabel(hPlots(1,1),'Num Stim');
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%% Plot Mean Data %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -132,47 +132,47 @@ for i=1:numGoodSessions
     allMeanFiringRates = cat(1,allMeanFiringRates,combineDataAcrossBothArrays(getMean(goodFiringRates{i}(:,conditionsToUse))));
     allMeanMTPower = cat(1,allMeanMTPower,combineDataAcrossBothArrays(getMean(goodMTPower{i}(:,conditionsToUse))));
 end
-
-% Firing Rates
-makeBarPlot(hPlots(2,1),squeeze(allMeanFiringRates),colorNamesList,legendStrList);
-title(hPlots(2,1),'Firing Rates'); ylabel(hPlots(2,1),'Spikes/s');
-
-% MT Power
-tmpData = 10*log10(allMeanMTPower); tmpFreq = freqValsMT;
-
-% Plot without SEM first to get the legend in proper order
-for i=1:4
-    plotData(hPlots(1,2),tmpFreq,squeeze(tmpData(:,:,i))/10,colorNamesList(i,:),0);
-    plotData(hPlots(2,2),tmpFreq,squeeze(tmpData(:,:,i) - tmpData(:,:,2)),colorNamesList(i,:),0); % Change from AOV condition
+if displayFlag
+    % Firing Rates
+    makeBarPlot(hPlots(2,1),squeeze(allMeanFiringRates),colorNamesList,legendStrList);
+    title(hPlots(2,1),'Firing Rates'); ylabel(hPlots(2,1),'Spikes/s');
+    
+    % MT Power
+    tmpData = 10*log10(allMeanMTPower); tmpFreq = freqValsMT;
+    
+    % Plot without SEM first to get the legend in proper order
+    for i=1:4
+        plotData(hPlots(1,2),tmpFreq,squeeze(tmpData(:,:,i))/10,colorNamesList(i,:),0);
+        plotData(hPlots(2,2),tmpFreq,squeeze(tmpData(:,:,i) - tmpData(:,:,2)),colorNamesList(i,:),0); % Change from AOV condition
+    end
+    % Now plot with SEMs
+    for i=1:4
+        plotData(hPlots(1,2),tmpFreq,squeeze(tmpData(:,:,i))/10,colorNamesList(i,:),1);
+        plotData(hPlots(2,2),tmpFreq,squeeze(tmpData(:,:,i) - tmpData(:,:,2)),colorNamesList(i,:),1); % Change from AOV condition
+    end
+    legend(hPlots(1,2),legendStrList); ylabel(hPlots(1,2),'Power');
+    legend(hPlots(2,2),legendStrList); ylabel(hPlots(2,2),'\DeltaPower (dB)');
+    
+    % Plot the differences
+    for i=1:4
+        if (i<3); plotPos = 1; else; plotPos=2; end
+        tmpIndexToCompare = indicesToCompare{i};
+        plotData(hPlots(plotPos,3),tmpFreq,squeeze(tmpData(:,:,tmpIndexToCompare(1)) - tmpData(:,:,tmpIndexToCompare(2))),colorsForComparison{i},0);
+    end
+    for i=1:4
+        if (i<3); plotPos = 1; else; plotPos=2; end
+        tmpIndexToCompare = indicesToCompare{i};
+        plotData(hPlots(plotPos,3),tmpFreq,squeeze(tmpData(:,:,tmpIndexToCompare(1)) - tmpData(:,:,tmpIndexToCompare(2))),colorsForComparison{i},1);
+    end
+    
+    plot(hPlots(1,3),tmpFreq,zeros(1,length(tmpFreq)),'k--');
+    legend(hPlots(1,3),[legendForComparison(1) legendForComparison(2)],'location','best');
+    ylabel(hPlots(1,3),'\DeltaPower (dB)');
+    
+    plot(hPlots(2,3),tmpFreq,zeros(1,length(tmpFreq)),'k--');
+    legend(hPlots(2,3),[legendForComparison(3) legendForComparison(4)],'location','best');
+    ylabel(hPlots(2,3),'\DeltaPower (dB)');
 end
-% Now plot with SEMs
-for i=1:4
-    plotData(hPlots(1,2),tmpFreq,squeeze(tmpData(:,:,i))/10,colorNamesList(i,:),1);
-    plotData(hPlots(2,2),tmpFreq,squeeze(tmpData(:,:,i) - tmpData(:,:,2)),colorNamesList(i,:),1); % Change from AOV condition
-end
-legend(hPlots(1,2),legendStrList); ylabel(hPlots(1,2),'Power');
-legend(hPlots(2,2),legendStrList); ylabel(hPlots(2,2),'\DeltaPower (dB)');
-
-% Plot the differences
-for i=1:4
-    if (i<3); plotPos = 1; else; plotPos=2; end
-    tmpIndexToCompare = indicesToCompare{i};
-    plotData(hPlots(plotPos,3),tmpFreq,squeeze(tmpData(:,:,tmpIndexToCompare(1)) - tmpData(:,:,tmpIndexToCompare(2))),colorsForComparison{i},0);
-end
-for i=1:4
-    if (i<3); plotPos = 1; else; plotPos=2; end
-    tmpIndexToCompare = indicesToCompare{i};
-    plotData(hPlots(plotPos,3),tmpFreq,squeeze(tmpData(:,:,tmpIndexToCompare(1)) - tmpData(:,:,tmpIndexToCompare(2))),colorsForComparison{i},1);
-end
-
-plot(hPlots(1,3),tmpFreq,zeros(1,length(tmpFreq)),'k--');
-legend(hPlots(1,3),[legendForComparison(1) legendForComparison(2)],'location','best');
-ylabel(hPlots(1,3),'\DeltaPower (dB)');
-
-plot(hPlots(2,3),tmpFreq,zeros(1,length(tmpFreq)),'k--');
-legend(hPlots(2,3),[legendForComparison(3) legendForComparison(4)],'location','best');
-ylabel(hPlots(2,3),'\DeltaPower (dB)');
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% Get DPrimes %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 allDPrimesFiringRates0 = cell(4,numGoodSessions);
@@ -188,16 +188,17 @@ end
 
 allDPrimesFiringRates = combineDPrimesAcrossBothArrays(allDPrimesFiringRates0);
 allDPrimesMTPower = combineDPrimesAcrossBothArrays(allDPrimesMTPower0);
-
-% Plot DPrimes
-for i=1:4
-    if (i<3); plotPos = 1; else; plotPos=2; end
-    plotData(hPlots(plotPos,4),freqValsMT,allDPrimesMTPower{i},colorsForComparison{i},1);
-    plotData(hPlots(plotPos,4),freqValsMT,repmat(squeeze(allDPrimesFiringRates{i}),1,length(freqValsMT)),colorsForComparison{i},1);
-end
-for i=1:2
-    plot(hPlots(i,4),freqValsMT,zeros(1,length(freqValsMT)),'k--');
-    ylabel(hPlots(i,4),'dPrime');
+if displayFlag
+    % Plot DPrimes
+    for i=1:4
+        if (i<3); plotPos = 1; else; plotPos=2; end
+        plotData(hPlots(plotPos,4),freqValsMT,allDPrimesMTPower(:,:,i),colorsForComparison{i},1);
+        plotData(hPlots(plotPos,4),freqValsMT,repmat(squeeze(allDPrimesFiringRates(:,:,i)),1,length(freqValsMT)),colorsForComparison{i},1);
+    end
+    for i=1:2
+        plot(hPlots(i,4),freqValsMT,zeros(1,length(freqValsMT)),'k--');
+        ylabel(hPlots(i,4),'dPrime');
+    end
 end
 end
 function y=getMean(x,condition)
@@ -261,13 +262,13 @@ if (size(data,1)==2) && (size(data,2)==4)
     tmpCombinedData{3} = cat(1,data{1,3},data{2,4}); % Attend In Miss [(R)M0 & (L)M1]
     tmpCombinedData{4} = cat(1,data{1,4},data{2,3}); % Attend Out Miss [(R)M1 & (L)M0)
     
-    combinedData = cat(3,tmpCombinedData{1},tmpCombinedData{2},tmpCombinedData{3},tmpCombinedData{4});
+    combinedData = cat(3,tmpCombinedData{:});
 end
 end
 function combinedData = combineDPrimesAcrossBothArrays(data)
 
 numGoodSessions = size(data,2);
-combinedData = cell(1,4);
+combinedDataTMP = cell(1,4);
 
 % Input data has size of 4 x numGoodSessions. Each entry is a cell array of
 % size 2x1, each containing data from one array. Data needs to be combined
@@ -288,7 +289,7 @@ for c=1:2
         allVals = cat(1,allVals,tmpData{1});
         allVals = cat(1,allVals,-tmpData{2});
     end
-    combinedData{c} = allVals;
+    combinedDataTMP{c} = allVals;
 end
 
 % Hits-Miss for AttIn and AttOut: 
@@ -305,9 +306,10 @@ for i=1:numGoodSessions
     attOutHitVsMiss = cat(1,attOutHitVsMiss,comparison3{2});
     attOutHitVsMiss = cat(1,attOutHitVsMiss,comparison4{1});
 end
-combinedData{3} = attInHitVsMiss;
-combinedData{4} = attOutHitVsMiss;
+combinedDataTMP{3} = attInHitVsMiss;
+combinedDataTMP{4} = attOutHitVsMiss;
 
+combinedData = cat(3,combinedDataTMP{:});
 end
 function makeBarPlot(h,data,colorNames,legendStr)
 

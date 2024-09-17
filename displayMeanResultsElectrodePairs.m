@@ -5,14 +5,14 @@
 % measure - phase or power
 
 % Modified from displayResultsElectrodePairs. Here, we compute PPC or
-% correlation across trials also (yielding measures similar to previous paper)
-function displayMeanResultsElectrodePairs(conditionType,targetOnsetMatchingChoice,numTrialCutoff,TWNum,measure)
+% correlation across trials also (yielding measures similar to Prakash et al.,2021 paper)
+function [allMeansMT,allMeansFR,pairwiseMeasureDataMT,pairwiseMeasureDataFR] = displayMeanResultsElectrodePairs(conditionType,targetOnsetMatchingChoice,numTrialCutoff,TWNum,measure,displayFlag)
 
 if ~exist('targetOnsetMatchingChoice','var'); targetOnsetMatchingChoice=3; end
 if ~exist('numTrialCutoff','var');            numTrialCutoff=10;        end
 if ~exist('TWNum','var');                   TWNum=3;                    end
 if ~exist('measure','var');                 measure='phase';            end
-
+if ~exist('displayFlag','var');             displayFlag=1;              end
 %%%%%%%%%%%%%%%%%% To plot differences and dPrimes %%%%%%%%%%%%%%%%%%%%%%%%
 indicesToCompare{1} = [1 2]; % L vs R for Hits
 indicesToCompare{2} = [3 4]; % L vs R for Misses
@@ -44,9 +44,10 @@ originalConditionsList = fullOriginalConditionsList(conditionsToUse);
 numConditionsToUse = length(conditionsToUse);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%% Display Responses %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-hPlots = getPlotHandles(2,1,[0.05 0.05 0.9 0.9],0.05,0.1,0);
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%% Check for intermediate data %%%%%%%%%%%%%%%%%%%
+if displayFlag
+    hPlots = getPlotHandles(2,1,[0.05 0.05 0.9 0.9],0.05,0.1,0);
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%% Check for intermediate data (Comment out this section while running multiple iterations) %%%%%%%%%%%%%%%%%%%
 folderSavedData = fullfile(pwd,'savedData');
 pairwiseDataToSave = fullfile(folderSavedData,['pairwiseMeanData' conditionType num2str(targetOnsetMatchingChoice) 'N' num2str(numTrialCutoff) 'TW' num2str(TWNum) measure '.mat']);
 
@@ -136,7 +137,7 @@ else
             end
         end
     end
-    save(pairwiseDataToSave,'pairwiseMeasureDataFR','pairwiseMeasureDataMT','freqValsMT');
+    save(pairwiseDataToSave,'pairwiseMeasureDataFR','pairwiseMeasureDataMT','freqValsMT'); % Comment this line while running multiple iteration. 
 end
 
 %%%%%%%%%%%%%%%%%%%% Get Means and DPrimes %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -167,39 +168,41 @@ for dataType=1:2  % MT measure and Firing rates
     end
     allMeans = combineComparisonDataAcrossBothArrays(allMeans0);
     if dataType==1
-        allMeansMT = allMeans;
+        allMeansMT = cat(3,allMeans{:});
     elseif dataType==2
-        allMeansFR = allMeans;
+        allMeansFR = cat(3,allMeans{:});
     end
 end
-% Plot Means
-pMT = zeros(1,4); pFR = zeros(1,4);
-for i=1:4
-    if (i<3); plotPos = 1; else; plotPos=2; end
-    pMT(i) = plotData(hPlots(plotPos,1),freqValsMT,allMeansMT{i}',colorsForComparison{i},0);
-    hold(hPlots(plotPos,1),'on')
-    if strcmp(measure,'power') % Plot firing rate correlation with power correlation only
-        pFR(i) = plotData(hPlots(plotPos,1),freqValsMT,allMeansFR{i}',colorsForComparison{i},1);
+if displayFlag
+    % Plot Means
+    pMT = zeros(1,4); pFR = zeros(1,4);
+    for i=1:4
+        if (i<3); plotPos = 1; else; plotPos=2; end
+        pMT(i) = plotData(hPlots(plotPos,1),freqValsMT,allMeansMT(:,:,i)',colorsForComparison{i},0);
+        hold(hPlots(plotPos,1),'on')
+        if strcmp(measure,'power') % Plot firing rate correlation with power correlation only
+            pFR(i) = plotData(hPlots(plotPos,1),freqValsMT,allMeansFR(:,:,i)',colorsForComparison{i},1);
+        end
     end
-end
-
-plot(hPlots(1,1),freqValsMT,zeros(1,length(freqValsMT)),'k--');
-plot(hPlots(2,1),freqValsMT,zeros(1,length(freqValsMT)),'k--');
-if strcmp(measure,'phase')
-    ylabel(hPlots(1,1),'\Delta PPC');
-    xlabel(hPlots(1,1),'Frequency');
-else
-    ylabel(hPlots(1,1),'\Delta Corr');
-    xlabel(hPlots(1,1),'Frequency');
-end
-if strcmp(measure,'power')
-    legendForComparisonMT = cellfun(@(x) [x ' Power'],legendForComparison,'un',0);
-    legendForComparisonFR = cellfun(@(x) [x ' Firing rate'],legendForComparison,'un',0);
-    legend(hPlots(1,1),[pMT(1:2) pFR(1:2)],[legendForComparisonMT(1:2) legendForComparisonFR(1:2)]);
-    legend(hPlots(2,1),[pMT(3:4) pFR(3:4)],[legendForComparisonMT(3:4) legendForComparisonFR(3:4)]);
-else
-    legend(hPlots(1,1),pMT(1:2),legendForComparison(1:2));
-    legend(hPlots(2,1),pMT(3:4),legendForComparison(3:4));
+    
+    plot(hPlots(1,1),freqValsMT,zeros(1,length(freqValsMT)),'k--');
+    plot(hPlots(2,1),freqValsMT,zeros(1,length(freqValsMT)),'k--');
+    if strcmp(measure,'phase')
+        ylabel(hPlots(1,1),'\Delta PPC');
+        xlabel(hPlots(1,1),'Frequency');
+    else
+        ylabel(hPlots(1,1),'\Delta Corr');
+        xlabel(hPlots(1,1),'Frequency');
+    end
+    if strcmp(measure,'power')
+        legendForComparisonMT = cellfun(@(x) [x ' Power'],legendForComparison,'un',0);
+        legendForComparisonFR = cellfun(@(x) [x ' Firing rate'],legendForComparison,'un',0);
+        legend(hPlots(1,1),[pMT(1:2) pFR(1:2)],[legendForComparisonMT(1:2) legendForComparisonFR(1:2)]);
+        legend(hPlots(2,1),[pMT(3:4) pFR(3:4)],[legendForComparisonMT(3:4) legendForComparisonFR(3:4)]);
+    else
+        legend(hPlots(1,1),pMT(1:2),legendForComparison(1:2));
+        legend(hPlots(2,1),pMT(3:4),legendForComparison(3:4));
+    end
 end
 end
 
